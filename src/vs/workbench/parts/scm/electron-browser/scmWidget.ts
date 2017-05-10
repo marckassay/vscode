@@ -26,7 +26,7 @@ import { IViewletService } from 'vs/workbench/services/viewlet/browser/viewlet';
 import { isSearchViewletFocussed, appendKeyBindingLabel } from 'vs/workbench/parts/search/browser/searchActions';
 import { CONTEXT_FIND_WIDGET_NOT_VISIBLE } from 'vs/editor/contrib/find/common/findController';
 import { HistoryNavigator } from 'vs/base/common/history';
-import * as Constants from 'vs/workbench/parts/search/common/constants';
+import * as Constants from 'vs/workbench/parts/scm/common/constants';
 import { attachInputBoxStyler, attachFindInputBoxStyler, attachButtonStyler } from 'vs/platform/theme/common/styler';
 import { IThemeService } from 'vs/platform/theme/common/themeService';
 import { SIDE_BAR_BACKGROUND } from 'vs/workbench/common/theme';
@@ -78,14 +78,18 @@ export class SCMWidget extends Widget {
 	public domNode: HTMLElement;
 	public messageInput: InputBox; //  searchInput: FindInput
 	private messageInputBoxFocussed: IContextKey<boolean>;
-	private tagInputBoxFocussed: IContextKey<boolean>;
-	private tagInput: InputBox; //  replaceInput : InputBox
-
 	public messageInputFocusTracker: dom.IFocusTracker;
+
+	private tagInput: InputBox; //  replaceInput : InputBox
+	private tagInputBoxFocussed: IContextKey<boolean>;
 	public tagInputFocusTracker: dom.IFocusTracker;
 
-	private tagContainer: HTMLElement;
 	private toggleTagButton: Button;
+
+
+
+
+	private tagContainer: HTMLElement;
 	//private replaceAllAction: ReplaceAllAction;
 	private tagActive: IContextKey<boolean>;
 	private tagActionBar: ActionBar;
@@ -114,22 +118,22 @@ export class SCMWidget extends Widget {
 		private keyBindingService: IContextKeyService, private keyBindingService2: IKeybindingService, private instantiationService: IInstantiationService) {
 		super();
 		//this.searchHistory = new HistoryNavigator<string>();
-		this.replaceActive = Constants.ReplaceActiveKey.bindTo(this.keyBindingService);
-		this.searchInputBoxFocussed = Constants.SearchInputBoxFocussedKey.bindTo(this.keyBindingService);
-		this.replaceInputBoxFocussed = Constants.ReplaceInputBoxFocussedKey.bindTo(this.keyBindingService);
+		this.tagActive = Constants.TagActiveKey.bindTo(this.keyBindingService);
+		this.messageInputBoxFocussed = Constants.MessageInputBoxFocussedKey.bindTo(this.keyBindingService);
+		this.tagInputBoxFocussed = Constants.TagInputBoxFocussedKey.bindTo(this.keyBindingService);
 		this.render(container, options);
 	}
 
-	public focus(select: boolean = true, focusReplace: boolean = false): void {
-		if ((!focusReplace && this.messageInput.inputBox.hasFocus())
-			|| (focusReplace && this.replaceInput.hasFocus())) {
+	public focus(select: boolean = true, focusTag: boolean = false): void {
+		if ((!focusTag && this.messageInput.inputBox.hasFocus())
+			|| (focusTag && this.tagInput.hasFocus())) {
 			return;
 		}
 
-		if (focusReplace && this.isReplaceShown()) {
-			this.replaceInput.focus();
+		if (focusTag && this.isTagShown()) {
+			this.tagInput.focus();
 			if (select) {
-				this.replaceInput.select();
+				this.tagInput.select();
 			}
 		} else {
 			this.messageInput.focus();
@@ -141,36 +145,37 @@ export class SCMWidget extends Widget {
 
 	public setWidth(width: number) {
 		this.messageInput.setWidth(width - 2);
-		this.replaceInput.width = width - 28;
+		this.tagInput.width = width - 200;
 	}
 
 	public clear() {
 		this.messageInput.clear();
-		this.replaceInput.value = '';
-		this.setReplaceAllActionState(false);
+		this.tagInput.value = '';
+		this.setTagAllActionState(false);
 	}
 
-	public isReplaceShown(): boolean {
-		return !dom.hasClass(this.replaceContainer, 'disabled');
+	public isTagShown(): boolean {
+		return !dom.hasClass(this.tagContainer, 'disabled');
 	}
 
-	public getReplaceValue(): string {
-		return this.replaceInput.value;
+	public getTagValue(): string {
+		return this.tagInput.value;
 	}
 
-	public toggleReplace(show?: boolean): void {
-		if (show === void 0 || show !== this.isReplaceShown()) {
+	public toggleTag(show?: boolean): void {
+		if (show === void 0 || show !== this.isTagShown()) {
 			this.onToggleReplaceButton();
 		}
 	}
-
+	/**
 	public showNextSearchTerm() {
 		let next = this.searchHistory.next();
 		if (next) {
 			this.messageInput.setValue(next);
 		}
 	}
-
+	**/
+	/**
 	public showPreviousSearchTerm() {
 		let previous;
 		if (this.messageInput.getValue().length === 0) {
@@ -183,126 +188,139 @@ export class SCMWidget extends Widget {
 			this.messageInput.setValue(previous);
 		}
 	}
+	**/
 
-	public searchInputHasFocus(): boolean {
-		return this.searchInputBoxFocussed.get();
+	public messageInputHasFocus(): boolean {
+		return this.messageInputBoxFocussed.get();
 	}
 
-	public replaceInputHasFocus(): boolean {
-		return this.replaceInput.hasFocus();
+	public tagInputHasFocus(): boolean {
+		return this.tagInput.hasFocus();
 	}
 
 	private render(container: Builder, options: ISCMWidgetOptions): void {
-		this.domNode = container.div({ 'class': 'search-widget' }).style({ position: 'relative' }).getHTMLElement();
-		this.renderToggleReplaceButton(this.domNode);
+		this.domNode = container.div({ 'class': 'scm-widget' }).style({ position: 'relative' }).getHTMLElement();
+		this.renderToggleTagButton(this.domNode);
 
-		this.renderSearchInput(this.domNode, options);
-		this.renderReplaceInput(this.domNode);
+		this.renderMessageInput(this.domNode, options);
+		this.renderTagInput(this.domNode, options);
 	}
 
-	private renderToggleReplaceButton(parent: HTMLElement): void {
-		this.toggleReplaceButton = this._register(new Button(parent));
-		attachButtonStyler(this.toggleReplaceButton, this.themeService, {
+	private renderToggleTagButton(parent: HTMLElement): void {
+		this.toggleTagButton = this._register(new Button(parent));
+		attachButtonStyler(this.toggleTagButton, this.themeService, {
 			buttonBackground: SIDE_BAR_BACKGROUND,
 			buttonHoverBackground: SIDE_BAR_BACKGROUND
 		});
-		this.toggleReplaceButton.icon = 'toggle-replace-button collapse';
-		this.toggleReplaceButton.addListener('click', () => this.onToggleReplaceButton());
-		this.toggleReplaceButton.getElement().title = nls.localize('search.replace.toggle.button.title', "Toggle Replace");
+		this.toggleTagButton.icon = 'toggle-tag-button collapse';
+		this.toggleTagButton.addListener('click', () => this.onToggleTagButton());
+		//this.toggleTagButton.getElement().title = nls.localize('search.replace.toggle.button.title', "Toggle Tag");
 	}
 
-	private renderSearchInput(parent: HTMLElement, options: ISCMWidgetOptions): void {
+	private renderMessageInput(parent: HTMLElement, options: ISCMWidgetOptions): void {
+		/**
 		let inputOptions: IFindInputOptions = {
 			label: nls.localize('label.Search', 'Search: Type Search Term and press Enter to search or Escape to cancel'),
-			validation: (value: string) => this.validatSearchInput(value),
+			validation: (value: string) => this.validatMessageInput(value),
 			placeholder: nls.localize('search.placeHolder', "Search"),
 			appendCaseSensitiveLabel: appendKeyBindingLabel('', this.keyBindingService2.lookupKeybinding(Constants.ToggleCaseSensitiveActionId), this.keyBindingService2),
 			appendWholeWordsLabel: appendKeyBindingLabel('', this.keyBindingService2.lookupKeybinding(Constants.ToggleWholeWordActionId), this.keyBindingService2),
 			appendRegexLabel: appendKeyBindingLabel('', this.keyBindingService2.lookupKeybinding(Constants.ToggleRegexActionId), this.keyBindingService2)
 		};
+		 */
 
-		let searchInputContainer = dom.append(parent, dom.$('.search-container.input-box'));
-		this.messageInput = this._register(new FindInput(searchInputContainer, this.contextViewService, inputOptions));
-		this._register(attachFindInputBoxStyler(this.messageInput, this.themeService));
-		this.messageInput.onKeyUp((keyboardEvent: IKeyboardEvent) => this.onSearchInputKeyUp(keyboardEvent));
-		this.messageInput.setValue(options.value || '');
-		this.messageInput.setRegex(!!options.isRegex);
-		this.messageInput.setCaseSensitive(!!options.isCaseSensitive);
-		this.messageInput.setWholeWords(!!options.isWholeWords);
-		this._register(this.onSubmit(() => {
-			this.searchHistory.add(this.messageInput.getValue());
-		}));
-
-		this.searchInputFocusTracker = this._register(dom.trackFocus(this.messageInput.inputBox.inputElement));
-		this._register(this.searchInputFocusTracker.addFocusListener(() => {
-			this.searchInputBoxFocussed.set(true);
-		}));
-		this._register(this.searchInputFocusTracker.addBlurListener(() => {
-			this.searchInputBoxFocussed.set(false);
-		}));
-	}
-
-	private renderReplaceInput(parent: HTMLElement): void {
-		this.replaceContainer = dom.append(parent, dom.$('.replace-container.disabled'));
-		let replaceBox = dom.append(this.replaceContainer, dom.$('.input-box'));
-		this.replaceInput = this._register(new InputBox(replaceBox, this.contextViewService, {
+		let messageInputContainer = dom.append(parent, dom.$('.message-container.input-box'));
+		this.messageInput = this._register(new InputBox(messageInputContainer, this.contextViewService, {
 			ariaLabel: nls.localize('label.Replace', 'Replace: Type replace term and press Enter to preview or Escape to cancel'),
 			placeholder: nls.localize('search.replace.placeHolder', "Replace")
 		}));
-		this._register(attachInputBoxStyler(this.replaceInput, this.themeService));
-		this.onkeyup(this.replaceInput.inputElement, (keyboardEvent) => this.onReplaceInputKeyUp(keyboardEvent));
-		this.replaceInput.onDidChange(() => this._onReplaceValueChanged.fire());
-		this.messageInput.inputBox.onDidChange(() => this.onSearchInputChanged());
+		this._register(attachInputBoxStyler(this.messageInput, this.themeService));
+		this.messageInput.onKeyUp((keyboardEvent: IKeyboardEvent) => this.onMessageInputKeyUp(keyboardEvent));
+		this.messageInput.setValue(options.value || '');
+		//this.messageInput.setRegex(!!options.isRegex);
+		this.messageInput.setCaseSensitive(!!options.isCaseSensitive);
+		this.messageInput.setWholeWords(!!options.isWholeWords);
+		/**
 
-		this.replaceAllAction = ReplaceAllAction.INSTANCE;
-		this.replaceAllAction.searchWidget = this;
-		this.replaceAllAction.label = SCMWidget.REPLACE_ALL_DISABLED_LABEL;
-		this.replaceActionBar = this._register(new ActionBar(this.replaceContainer));
-		this.replaceActionBar.push([this.replaceAllAction], { icon: true, label: false });
-
-		this.replaceInputFocusTracker = this._register(dom.trackFocus(this.replaceInput.inputElement));
-		this._register(this.replaceInputFocusTracker.addFocusListener(() => {
-			this.replaceInputBoxFocussed.set(true);
+		this._register(this.onSubmit(() => {
+			this.searchHistory.add(this.messageInput.getValue());
 		}));
-		this._register(this.replaceInputFocusTracker.addBlurListener(() => {
-			this.replaceInputBoxFocussed.set(false);
+		 */
+
+		this.messageInputFocusTracker = this._register(dom.trackFocus(this.messageInput.inputBox.inputElement));
+		this._register(this.messageInputFocusTracker.addFocusListener(() => {
+			this.messageInputBoxFocussed.set(true);
+		}));
+		this._register(this.messageInputFocusTracker.addBlurListener(() => {
+			this.messageInputBoxFocussed.set(false);
 		}));
 	}
+
+	private renderTagInput(parent: HTMLElement, options: ISCMWidgetOptions): void {
+		this.tagContainer = dom.append(parent, dom.$('.tag-container.disabled'));
+		let tagBox = dom.append(this.tagContainer, dom.$('.input-box'));
+		this.tagInput = this._register(new InputBox(tagBox, this.contextViewService, {
+			ariaLabel: nls.localize('label.Replace', 'Replace: Type replace term and press Enter to preview or Escape to cancel'),
+			placeholder: nls.localize('search.replace.placeHolder', "Replace")
+		}));
+		this._register(attachInputBoxStyler(this.tagInput, this.themeService));
+		this.onkeyup(this.tagInput.inputElement, (keyboardEvent) => this.onTagInputKeyUp(keyboardEvent));
+		this.tagInput.onDidChange(() => this._onTagValueChanged.fire());
+		this.messageInput.inputBox.onDidChange(() => this.onMessageInputChanged());
+
+		//this.replaceAllAction = ReplaceAllAction.INSTANCE;
+		//this.replaceAllAction.searchWidget = this;
+		//this.replaceAllAction.label = SCMWidget.REPLACE_ALL_DISABLED_LABEL;
+		//this.replaceActionBar = this._register(new ActionBar(this.replaceContainer));
+		//this.replaceActionBar.push([this.replaceAllAction], { icon: true, label: false });
+
+		this.tagInputFocusTracker = this._register(dom.trackFocus(this.tagInput.inputElement));
+		this._register(this.tagInputFocusTracker.addFocusListener(() => {
+			this.tagInputBoxFocussed.set(true);
+		}));
+		this._register(this.tagInputFocusTracker.addBlurListener(() => {
+			this.tagInputBoxFocussed.set(false);
+		}));
+	}
+	/**
 
 	triggerReplaceAll(): TPromise<any> {
 		this._onReplaceAll.fire();
 		return TPromise.as(null);
 	}
+	 */
 
-	private onToggleReplaceButton(): void {
-		dom.toggleClass(this.replaceContainer, 'disabled');
-		dom.toggleClass(this.toggleReplaceButton.getElement(), 'collapse');
-		dom.toggleClass(this.toggleReplaceButton.getElement(), 'expand');
-		this.updateReplaceActiveState();
-		this._onReplaceToggled.fire();
+	private onToggleTagButton(): void {
+		dom.toggleClass(this.tagContainer, 'disabled');
+		dom.toggleClass(this.toggleTagButton.getElement(), 'collapse');
+		dom.toggleClass(this.toggleTagButton.getElement(), 'expand');
+		this.updateTagActiveState();
+
+		this._onTagToggled.fire();
 	}
 
-	public setReplaceAllActionState(enabled: boolean): void {
-		if (this.replaceAllAction.enabled !== enabled) {
-			this.replaceAllAction.enabled = enabled;
-			this.replaceAllAction.label = enabled ? SCMWidget.REPLACE_ALL_ENABLED_LABEL(this.keyBindingService2) : SCMWidget.REPLACE_ALL_DISABLED_LABEL;
-			this.updateReplaceActiveState();
+	public setTagActionState(enabled: boolean): void {
+		if (this.tagAction.enabled !== enabled) {
+		//	this.replaceAllAction.enabled = enabled;
+		//	this.replaceAllAction.label = enabled ? SCMWidget.REPLACE_ALL_ENABLED_LABEL(this.keyBindingService2) : SCMWidget.REPLACE_ALL_DISABLED_LABEL;
+			this.updateTagActiveState();
 		}
 	}
 
-	private isReplaceActive(): boolean {
-		return this.replaceActive.get();
+	private isTagActive(): boolean {
+		return this.tagActive.get();
 	}
 
-	private updateReplaceActiveState(): void {
-		let currentState = this.isReplaceActive();
-		let newState = this.isReplaceShown() && this.replaceAllAction.enabled;
+	private updateTagActiveState(): void {
+		let currentState = this.isTagActive();
+		let newState = this.isTagActive() && this.tagAction.enabled;
 		if (currentState !== newState) {
-			this.replaceActive.set(newState);
-			this._onReplaceStateChange.fire(newState);
+			this.tagAction.set(newState);
+			this._onTagStateChange.fire(newState);
 		}
 	}
 
+	 /*
 	private validatSearchInput(value: string): any {
 		if (value.length === 0) {
 			return null;
@@ -320,44 +338,45 @@ export class SCMWidget extends Widget {
 			return { content: nls.localize('regexp.validationFailure', "Expression matches everything") };
 		}
 	}
-
-	private onSearchInputChanged(): void {
-		this.setReplaceAllActionState(false);
+*/
+	private onMessageInputChanged(): void {
+		// TODO:: im getting confused whats whats here.  TagAction vs TagActive
+		//this.setTagActionState(false);
 	}
 
-	private onSearchInputKeyUp(keyboardEvent: IKeyboardEvent) {
+	private onMessageInputKeyUp(keyboardEvent: IKeyboardEvent) {
 		switch (keyboardEvent.keyCode) {
 			case KeyCode.Enter:
-				this.submitSearch();
+				this.submit();
 				return;
 			case KeyCode.Escape:
-				this._onSearchCancel.fire();
+				this._onMessageCancel.fire();
 				return;
 			default:
 				return;
 		}
 	}
 
-	private onReplaceInputKeyUp(keyboardEvent: IKeyboardEvent) {
+	private onTagInputKeyUp(keyboardEvent: IKeyboardEvent) {
 		switch (keyboardEvent.keyCode) {
 			case KeyCode.Enter:
-				this.submitSearch();
+				//this.submitSearch();
 				return;
 			default:
 				return;
 		}
 	}
 
-	private submitSearch(refresh: boolean = true): void {
+	private submit(refresh: boolean = true): void {
 		if (this.messageInput.getValue()) {
 			this._onSubmit.fire(refresh);
 		}
 	}
 
 	public dispose(): void {
-		this.setReplaceAllActionState(false);
-		this.replaceAllAction.searchWidget = null;
-		this.replaceActionBar = null;
+		this.setTagActionState(false);
+		this.tagAction.searchWidget = null;
+		this.tagActionBar = null;
 		super.dispose();
 	}
 }
