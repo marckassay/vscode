@@ -387,7 +387,12 @@ export class SCMViewlet extends Viewlet {
 
 		toggleClass(this.inputBoxContainer, 'scroll', editorHeight >= 134);
 	}
-
+/**
+ *
+	public get searchAndReplaceWidget(): SCMWidget {
+		return this.scmWidget;
+	}
+*/
 	getOptimalWidth(): number {
 		return 400;
 	}

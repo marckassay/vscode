@@ -5,29 +5,29 @@
 
 import { RawContextKey } from 'vs/platform/contextkey/common/contextkey';
 
-export const VIEWLET_ID = 'workbench.view.search';
+export const VIEWLET_ID = 'workbench.view.scm';
 
 export const FindInFilesActionId = 'workbench.action.findInFiles';
-export const FocusActiveEditorActionId = 'search.action.focusActiveEditor';
+export const FocusActiveEditorActionId = 'scm.action.focusActiveEditor';
 
-export const FocusSearchFromResults = 'search.action.focusSearchFromResults';
-export const OpenMatchToSide = 'search.action.openResultToSide';
-export const CancelActionId = 'search.action.cancel';
-export const RemoveActionId = 'search.action.remove';
-export const ReplaceActionId = 'search.action.replace';
-export const ReplaceAllInFileActionId = 'search.action.replaceAllInFile';
-export const ToggleCaseSensitiveActionId = 'toggleSearchCaseSensitive';
-export const ToggleWholeWordActionId = 'toggleSearchWholeWord';
-export const ToggleRegexActionId = 'toggleSearchRegex';
-export const CloseReplaceWidgetActionId = 'closeReplaceInFilesWidget';
+export const FocusMessageFromResults = 'scm.action.focusMessageFromResults';
+//export const OpenMatchToSide = 'scm.action.openResultToSide';
+export const CancelActionId = 'scm.action.cancel';
+export const RemoveActionId = 'scm.action.remove';
+export const TagActionId = 'scm.action.tag';
+export const TagAllInFileActionId = 'scm.action.tagAllInFile';
+export const ToggleAnnotateActionId = 'toggleAnnotate';
+//export const ToggleWholeWordActionId = 'toggleMessageWholeWord';
+//export const ToggleMessageActionId = 'toggleMessageRegex';
+export const CloseTagWidgetActionId = 'closeTagInFilesWidget';
 
-export const SearchViewletVisibleKey = new RawContextKey<boolean>('searchViewletVisible', true);
+export const SCMViewletVisibleKey = new RawContextKey<boolean>('scmViewletVisible', true);
 export const InputBoxFocussedKey = new RawContextKey<boolean>('inputBoxFocus', false);
-export const SearchInputBoxFocussedKey = new RawContextKey<boolean>('searchInputBoxFocus', false);
-export const ReplaceInputBoxFocussedKey = new RawContextKey<boolean>('replaceInputBoxFocus', false);
-export const ReplaceActiveKey = new RawContextKey<boolean>('replaceActive', false);
+export const MessageInputBoxFocussedKey = new RawContextKey<boolean>('messageInputBoxFocus', false);
+export const TagInputBoxFocussedKey = new RawContextKey<boolean>('tagInputBoxFocus', false);
+export const TagActiveKey = new RawContextKey<boolean>('tagActive', false);
 
-export const FirstMatchFocusKey = new RawContextKey<boolean>('firstMatchFocus', false);
-export const FileMatchOrMatchFocusKey = new RawContextKey<boolean>('fileMatchOrMatchFocus', false);
-export const FileFocusKey = new RawContextKey<boolean>('fileMatchFocus', false);
-export const MatchFocusKey = new RawContextKey<boolean>('matchFocus', false);
+//export const FirstMatchFocusKey = new RawContextKey<boolean>('firstMatchFocus', false);
+//export const FileMatchOrMatchFocusKey = new RawContextKey<boolean>('fileMatchOrMatchFocus', false);
+//export const FileFocusKey = new RawContextKey<boolean>('fileMatchFocus', false);
+//export const MatchFocusKey = new RawContextKey<boolean>('matchFocus', false);
