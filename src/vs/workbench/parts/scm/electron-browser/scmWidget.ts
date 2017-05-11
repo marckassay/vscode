@@ -23,7 +23,7 @@ import Event, { Emitter } from 'vs/base/common/event';
 import { Builder } from 'vs/base/browser/builder';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
 import { IViewletService } from 'vs/workbench/services/viewlet/browser/viewlet';
-import { isSearchViewletFocussed, appendKeyBindingLabel } from 'vs/workbench/parts/search/browser/searchActions';
+import { isSCMViewletFocussed, appendKeyBindingLabel } from 'vs/workbench/parts/scm/browser/scmActions';
 import { CONTEXT_FIND_WIDGET_NOT_VISIBLE } from 'vs/editor/contrib/find/common/findController';
 import { HistoryNavigator } from 'vs/base/common/history';
 import * as Constants from 'vs/workbench/parts/scm/common/constants';
@@ -33,74 +33,73 @@ import { SIDE_BAR_BACKGROUND } from 'vs/workbench/common/theme';
 
 export interface ISCMWidgetOptions {
 	value?: string;
-	// annotate?: boolean;
+	isRegex?: boolean;
+	isCaseSensitive?: boolean;
+	isWholeWords?: boolean;
 }
-/**
-class ReplaceAllAction extends Action {
 
-	private static fgInstance: ReplaceAllAction = null;
-	public static ID: string = 'search.action.replaceAll';
+class TagAllAction extends Action {
 
-	static get INSTANCE(): ReplaceAllAction {
-		if (ReplaceAllAction.fgInstance === null) {
-			ReplaceAllAction.fgInstance = new ReplaceAllAction();
+	private static fgInstance: TagAllAction = null;
+	public static ID: string = 'scm.action.tagAll';
+
+	static get INSTANCE(): TagAllAction {
+		if (TagAllAction.fgInstance === null) {
+			TagAllAction.fgInstance = new TagAllAction();
 		}
-		return ReplaceAllAction.fgInstance;
+		return TagAllAction.fgInstance;
 	}
 
-	private _searchWidget: SearchWidget = null;
+	private _scmWidget: SCMWidget = null;
 
 	constructor() {
-		super(ReplaceAllAction.ID, '', 'action-replace-all', false);
+		super(TagAllAction.ID, '', 'action-tag-all', false);
 	}
 
-	set searchWidget(searchWidget: SearchWidget) {
-		this._searchWidget = searchWidget;
+	set scmWidget(scmWidget: SCMWidget) {
+		this._scmWidget = scmWidget;
 	}
 
 	run(): TPromise<any> {
-		if (this._searchWidget) {
-			return this._searchWidget.triggerReplaceAll();
+		if (this._scmWidget) {
+			return this._scmWidget.triggerTagAll();
 		}
 		return TPromise.as(null);
 	}
 }
-**/
+
 export class SCMWidget extends Widget {
-	/**
-	private static REPLACE_ALL_DISABLED_LABEL = nls.localize('search.action.replaceAll.disabled.label', "Replace All (Submit Search to Enable)");
-	private static REPLACE_ALL_ENABLED_LABEL = (keyBindingService2: IKeybindingService): string => {
-		let kb = keyBindingService2.lookupKeybinding(ReplaceAllAction.ID);
-		return appendKeyBindingLabel(nls.localize('search.action.replaceAll.enabled.label', "Replace All"), kb, keyBindingService2);
+
+	private static TAG_ALL_DISABLED_LABEL = nls.localize('scm.action.tagAll.disabled.label', "Tag All (Submit Message to Enable)");
+	private static TAG_ALL_ENABLED_LABEL = (keyBindingService2: IKeybindingService): string => {
+		let kb = keyBindingService2.lookupKeybinding(TagAllAction.ID);
+		return appendKeyBindingLabel(nls.localize('scm.action.tagAll.enabled.label', "Tag All"), kb, keyBindingService2);
 	}
-	**/
 
 	public domNode: HTMLElement;
-	public messageInput: InputBox; //  searchInput: FindInput
+
+	public messageInput: FindInput;
 	private messageInputBoxFocussed: IContextKey<boolean>;
 	public messageInputFocusTracker: dom.IFocusTracker;
 
-	private tagInput: InputBox; //  replaceInput : InputBox
-	private tagInputBoxFocussed: IContextKey<boolean>;
-	public tagInputFocusTracker: dom.IFocusTracker;
-
 	private toggleTagButton: Button;
 
-
-
-
 	private tagContainer: HTMLElement;
-	//private replaceAllAction: ReplaceAllAction;
-	private tagActive: IContextKey<boolean>;
+
+	private tagInput: InputBox;
+	private tagInputBoxFocussed: IContextKey<boolean>;
+	public tagInputFocusTracker: dom.IFocusTracker;
+	private tagAllAction: TagAllAction;
 	private tagActionBar: ActionBar;
+	private tagActive: IContextKey<boolean>;
 
-	//private searchHistory: HistoryNavigator<string>;
+	private messageHistory: HistoryNavigator<string>;
 
-	private _onSubmit = this._register(new Emitter<boolean>());
-	public onSubmit: Event<boolean> = this._onSubmit.event;
+	private _onMessageSubmit = this._register(new Emitter<boolean>());
+	public onMessageSubmit: Event<boolean> = this._onMessageSubmit.event;
 
-	//private _onSearchCancel = this._register(new Emitter<void>());
-	//public onSearchCancel: Event<void> = this._onSearchCancel.event;
+	private _onMessageCancel = this._register(new Emitter<void>());
+	public onMessageCancel: Event<void> = this._onMessageCancel.event;
 
 	private _onTagToggled = this._register(new Emitter<void>());
 	public onTagToggled: Event<void> = this._onTagToggled.event;
@@ -111,13 +110,13 @@ export class SCMWidget extends Widget {
 	private _onTagValueChanged = this._register(new Emitter<string>());
 	public onTagValueChanged: Event<string> = this._onTagValueChanged.event;
 
-	//private _onReplaceAll = this._register(new Emitter<void>());
-	//public onReplaceAll: Event<void> = this._onReplaceAll.event;
+	private _onTagAll = this._register(new Emitter<void>());
+	public onTagAll: Event<void> = this._onTagAll.event;
 
 	constructor(container: Builder, private contextViewService: IContextViewService, private themeService: IThemeService, options: ISCMWidgetOptions = Object.create(null),
 		private keyBindingService: IContextKeyService, private keyBindingService2: IKeybindingService, private instantiationService: IInstantiationService) {
 		super();
-		//this.searchHistory = new HistoryNavigator<string>();
+		this.messageHistory = new HistoryNavigator<string>();
 		this.tagActive = Constants.TagActiveKey.bindTo(this.keyBindingService);
 		this.messageInputBoxFocussed = Constants.MessageInputBoxFocussedKey.bindTo(this.keyBindingService);
 		this.tagInputBoxFocussed = Constants.TagInputBoxFocussedKey.bindTo(this.keyBindingService);
@@ -145,7 +144,7 @@ export class SCMWidget extends Widget {
 
 	public setWidth(width: number) {
 		this.messageInput.setWidth(width - 2);
-		this.tagInput.width = width - 200;
+		this.tagInput.width = width - 28;
 	}
 
 	public clear() {
@@ -164,32 +163,30 @@ export class SCMWidget extends Widget {
 
 	public toggleTag(show?: boolean): void {
 		if (show === void 0 || show !== this.isTagShown()) {
-			this.onToggleReplaceButton();
+			this.onToggleTagButton();
 		}
 	}
 	/**
 	public showNextSearchTerm() {
-		let next = this.searchHistory.next();
+		let next = this.messageHistory.next();
 		if (next) {
 			this.messageInput.setValue(next);
 		}
 	}
-	**/
-	/**
+
 	public showPreviousSearchTerm() {
 		let previous;
 		if (this.messageInput.getValue().length === 0) {
-			previous = this.searchHistory.current();
+			previous = this.messageHistory.current();
 		} else {
-			this.searchHistory.addIfNotPresent(this.messageInput.getValue());
-			previous = this.searchHistory.previous();
+			this.messageHistory.addIfNotPresent(this.messageInput.getValue());
+			previous = this.messageHistory.previous();
 		}
 		if (previous) {
 			this.messageInput.setValue(previous);
 		}
 	}
-	**/
-
+	*/
 	public messageInputHasFocus(): boolean {
 		return this.messageInputBoxFocussed.get();
 	}
@@ -203,7 +200,7 @@ export class SCMWidget extends Widget {
 		this.renderToggleTagButton(this.domNode);
 
 		this.renderMessageInput(this.domNode, options);
-		this.renderTagInput(this.domNode, options);
+		this.renderTagInput(this.domNode);
 	}
 
 	private renderToggleTagButton(parent: HTMLElement): void {
@@ -214,38 +211,30 @@ export class SCMWidget extends Widget {
 		});
 		this.toggleTagButton.icon = 'toggle-tag-button collapse';
 		this.toggleTagButton.addListener('click', () => this.onToggleTagButton());
-		//this.toggleTagButton.getElement().title = nls.localize('search.replace.toggle.button.title', "Toggle Tag");
+		this.toggleTagButton.getElement().title = nls.localize('scm.tag.toggle.button.title', "Toggle Tag");
 	}
 
 	private renderMessageInput(parent: HTMLElement, options: ISCMWidgetOptions): void {
-		/**
 		let inputOptions: IFindInputOptions = {
-			label: nls.localize('label.Search', 'Search: Type Search Term and press Enter to search or Escape to cancel'),
+			label: nls.localize('label.Message', 'Message: Type Message Term and press Enter to scm or Escape to cancel'),
 			validation: (value: string) => this.validatMessageInput(value),
-			placeholder: nls.localize('search.placeHolder', "Search"),
+			placeholder: nls.localize('scm.placeHolder', "Message"),
 			appendCaseSensitiveLabel: appendKeyBindingLabel('', this.keyBindingService2.lookupKeybinding(Constants.ToggleCaseSensitiveActionId), this.keyBindingService2),
 			appendWholeWordsLabel: appendKeyBindingLabel('', this.keyBindingService2.lookupKeybinding(Constants.ToggleWholeWordActionId), this.keyBindingService2),
 			appendRegexLabel: appendKeyBindingLabel('', this.keyBindingService2.lookupKeybinding(Constants.ToggleRegexActionId), this.keyBindingService2)
 		};
-		 */
 
-		let messageInputContainer = dom.append(parent, dom.$('.message-container.input-box'));
-		this.messageInput = this._register(new InputBox(messageInputContainer, this.contextViewService, {
-			ariaLabel: nls.localize('label.Replace', 'Replace: Type replace term and press Enter to preview or Escape to cancel'),
-			placeholder: nls.localize('search.replace.placeHolder', "Replace")
-		}));
-		this._register(attachInputBoxStyler(this.messageInput, this.themeService));
+		let messageInputContainer = dom.append(parent, dom.$('.scm-container.input-box'));
+		this.messageInput = this._register(new FindInput(messageInputContainer, this.contextViewService, inputOptions));
+		this._register(attachFindInputBoxStyler(this.messageInput, this.themeService));
 		this.messageInput.onKeyUp((keyboardEvent: IKeyboardEvent) => this.onMessageInputKeyUp(keyboardEvent));
 		this.messageInput.setValue(options.value || '');
-		//this.messageInput.setRegex(!!options.isRegex);
+		this.messageInput.setRegex(!!options.isRegex);
 		this.messageInput.setCaseSensitive(!!options.isCaseSensitive);
 		this.messageInput.setWholeWords(!!options.isWholeWords);
-		/**
-
-		this._register(this.onSubmit(() => {
-			this.searchHistory.add(this.messageInput.getValue());
+		this._register(this.onMessageSubmit(() => {
+			this.messageHistory.add(this.messageInput.getValue());
 		}));
-		 */
 
 		this.messageInputFocusTracker = this._register(dom.trackFocus(this.messageInput.inputBox.inputElement));
 		this._register(this.messageInputFocusTracker.addFocusListener(() => {
@@ -256,23 +245,23 @@ export class SCMWidget extends Widget {
 		}));
 	}
 
-	private renderTagInput(parent: HTMLElement, options: ISCMWidgetOptions): void {
+	private renderTagInput(parent: HTMLElement): void {
 		this.tagContainer = dom.append(parent, dom.$('.tag-container.disabled'));
 		let tagBox = dom.append(this.tagContainer, dom.$('.input-box'));
 		this.tagInput = this._register(new InputBox(tagBox, this.contextViewService, {
-			ariaLabel: nls.localize('label.Replace', 'Replace: Type replace term and press Enter to preview or Escape to cancel'),
-			placeholder: nls.localize('search.replace.placeHolder', "Replace")
+			ariaLabel: nls.localize('label.Tag', 'Tag: Type tag term and press Enter to preview or Escape to cancel'),
+			placeholder: nls.localize('scm.tag.placeHolder', "Tag")
 		}));
 		this._register(attachInputBoxStyler(this.tagInput, this.themeService));
 		this.onkeyup(this.tagInput.inputElement, (keyboardEvent) => this.onTagInputKeyUp(keyboardEvent));
 		this.tagInput.onDidChange(() => this._onTagValueChanged.fire());
 		this.messageInput.inputBox.onDidChange(() => this.onMessageInputChanged());
 
-		//this.replaceAllAction = ReplaceAllAction.INSTANCE;
-		//this.replaceAllAction.searchWidget = this;
-		//this.replaceAllAction.label = SCMWidget.REPLACE_ALL_DISABLED_LABEL;
-		//this.replaceActionBar = this._register(new ActionBar(this.replaceContainer));
-		//this.replaceActionBar.push([this.replaceAllAction], { icon: true, label: false });
+		this.tagAllAction = TagAllAction.INSTANCE;
+		this.tagAllAction.scmWidget = this;
+		this.tagAllAction.label = SCMWidget.TAG_ALL_DISABLED_LABEL;
+		this.tagActionBar = this._register(new ActionBar(this.tagContainer));
+		this.tagActionBar.push([this.tagAllAction], { icon: true, label: false });
 
 		this.tagInputFocusTracker = this._register(dom.trackFocus(this.tagInput.inputElement));
 		this._register(this.tagInputFocusTracker.addFocusListener(() => {
@@ -282,27 +271,24 @@ export class SCMWidget extends Widget {
 			this.tagInputBoxFocussed.set(false);
 		}));
 	}
-	/**
 
-	triggerReplaceAll(): TPromise<any> {
-		this._onReplaceAll.fire();
+	triggerTagAll(): TPromise<any> {
+		this._onTagAll.fire();
 		return TPromise.as(null);
 	}
-	 */
 
 	private onToggleTagButton(): void {
 		dom.toggleClass(this.tagContainer, 'disabled');
 		dom.toggleClass(this.toggleTagButton.getElement(), 'collapse');
 		dom.toggleClass(this.toggleTagButton.getElement(), 'expand');
 		this.updateTagActiveState();
-
 		this._onTagToggled.fire();
 	}
 
-	public setTagActionState(enabled: boolean): void {
-		if (this.tagAction.enabled !== enabled) {
-		//	this.replaceAllAction.enabled = enabled;
-		//	this.replaceAllAction.label = enabled ? SCMWidget.REPLACE_ALL_ENABLED_LABEL(this.keyBindingService2) : SCMWidget.REPLACE_ALL_DISABLED_LABEL;
+	public setTagAllActionState(enabled: boolean): void {
+		if (this.tagAllAction.enabled !== enabled) {
+			this.tagAllAction.enabled = enabled;
+			this.tagAllAction.label = enabled ? SCMWidget.TAG_ALL_ENABLED_LABEL(this.keyBindingService2) : SCMWidget.TAG_ALL_DISABLED_LABEL;
 			this.updateTagActiveState();
 		}
 	}
@@ -313,15 +299,14 @@ export class SCMWidget extends Widget {
 
 	private updateTagActiveState(): void {
 		let currentState = this.isTagActive();
-		let newState = this.isTagActive() && this.tagAction.enabled;
+		let newState = this.isTagShown() && this.tagAllAction.enabled;
 		if (currentState !== newState) {
-			this.tagAction.set(newState);
+			this.tagActive.set(newState);
 			this._onTagStateChange.fire(newState);
 		}
 	}
 
-	 /*
-	private validatSearchInput(value: string): any {
+	private validatMessageInput(value: string): any {
 		if (value.length === 0) {
 			return null;
 		}
@@ -338,16 +323,15 @@ export class SCMWidget extends Widget {
 			return { content: nls.localize('regexp.validationFailure', "Expression matches everything") };
 		}
 	}
-*/
+
 	private onMessageInputChanged(): void {
-		// TODO:: im getting confused whats whats here.  TagAction vs TagActive
-		//this.setTagActionState(false);
+		this.setTagAllActionState(false);
 	}
 
 	private onMessageInputKeyUp(keyboardEvent: IKeyboardEvent) {
 		switch (keyboardEvent.keyCode) {
 			case KeyCode.Enter:
-				this.submit();
+				this.submitMessage();
 				return;
 			case KeyCode.Escape:
 				this._onMessageCancel.fire();
@@ -360,22 +344,22 @@ export class SCMWidget extends Widget {
 	private onTagInputKeyUp(keyboardEvent: IKeyboardEvent) {
 		switch (keyboardEvent.keyCode) {
 			case KeyCode.Enter:
-				//this.submitSearch();
+				this.submitMessage();
 				return;
 			default:
 				return;
 		}
 	}
 
-	private submit(refresh: boolean = true): void {
+	private submitMessage(refresh: boolean = true): void {
 		if (this.messageInput.getValue()) {
-			this._onSubmit.fire(refresh);
+			this._onMessageSubmit.fire(refresh);
 		}
 	}
 
 	public dispose(): void {
-		this.setTagActionState(false);
-		this.tagAction.searchWidget = null;
+		this.setTagAllActionState(false);
+		this.tagAllAction.scmWidget = null;
 		this.tagActionBar = null;
 		super.dispose();
 	}
@@ -383,13 +367,13 @@ export class SCMWidget extends Widget {
 
 export function registerContributions() {
 	KeybindingsRegistry.registerCommandAndKeybindingRule({
-		id: ReplaceAllAction.ID,
+		id: TagAllAction.ID,
 		weight: KeybindingsRegistry.WEIGHT.workbenchContrib(),
-		when: ContextKeyExpr.and(Constants.SearchViewletVisibleKey, Constants.ReplaceActiveKey, CONTEXT_FIND_WIDGET_NOT_VISIBLE),
+		when: ContextKeyExpr.and(Constants.SCMViewletVisibleKey, Constants.TagActiveKey, CONTEXT_FIND_WIDGET_NOT_VISIBLE),
 		primary: KeyMod.Alt | KeyMod.CtrlCmd | KeyCode.Enter,
 		handler: accessor => {
-			if (isSearchViewletFocussed(accessor.get(IViewletService))) {
-				ReplaceAllAction.INSTANCE.run();
+			if (isSCMViewletFocussed(accessor.get(IViewletService))) {
+				TagAllAction.INSTANCE.run();
 			}
 		}
 	});
