@@ -10,14 +10,14 @@ import { localize } from 'vs/nls';
 import { TPromise } from 'vs/base/common/winjs.base';
 import { chain } from 'vs/base/common/event';
 import { onUnexpectedError } from 'vs/base/common/errors';
-import * as platform from 'vs/base/common/platform';
-import { domEvent } from 'vs/base/browser/event';
+//import * as platform from 'vs/base/common/platform';
+//import { domEvent } from 'vs/base/browser/event';
 import { IDisposable, dispose, empty as EmptyDisposable, combinedDisposable } from 'vs/base/common/lifecycle';
 import { Builder, Dimension } from 'vs/base/browser/builder';
 import { Viewlet } from 'vs/workbench/browser/viewlet';
 import { append, $, toggleClass } from 'vs/base/browser/dom';
-import { StandardKeyboardEvent } from 'vs/base/browser/keyboardEvent';
-import { KeyCode, KeyMod } from 'vs/base/common/keyCodes';
+//import { StandardKeyboardEvent } from 'vs/base/browser/keyboardEvent';
+//import { KeyCode, KeyMod } from 'vs/base/common/keyCodes';
 import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
 import { List } from 'vs/base/browser/ui/list/listWidget';
 import { IDelegate, IRenderer, IListContextMenuEvent } from 'vs/base/browser/ui/list/list';
@@ -35,6 +35,7 @@ import { IListService } from 'vs/platform/list/browser/listService';
 import { IMenuService, MenuItemAction } from 'vs/platform/actions/common/actions';
 import { IAction, IActionItem, ActionRunner } from 'vs/base/common/actions';
 import { MenuItemActionItem } from 'vs/platform/actions/browser/menuItemActionItem';
+import { SCMWidget } from './scmWidget';
 import { SCMMenus } from './scmMenus';
 import { ActionBar, IActionItemProvider } from 'vs/base/browser/ui/actionbar/actionbar';
 import { IThemeService, LIGHT } from 'vs/platform/theme/common/themeService';
@@ -42,7 +43,7 @@ import { InputBox } from 'vs/base/browser/ui/inputbox/inputBox';
 import { IModelService } from 'vs/editor/common/services/modelService';
 import { comparePaths } from 'vs/base/common/comparers';
 import { isSCMResource } from './scmUtil';
-import { attachInputBoxStyler, attachListStyler, attachBadgeStyler } from 'vs/platform/theme/common/styler';
+import { attachListStyler, attachBadgeStyler } from 'vs/platform/theme/common/styler';
 import Severity from 'vs/base/common/severity';
 
 // TODO@Joao
@@ -222,11 +223,17 @@ export class SCMViewlet extends Viewlet {
 
 	private activeProvider: ISCMProvider | undefined;
 	private cachedDimension: Dimension;
+
 	private inputBoxContainer: HTMLElement;
 	private inputBox: InputBox;
+
+	private scmWidgetsContainer: Builder;
+	private scmWidget: SCMWidget;
+
 	private listContainer: HTMLElement;
 	private list: List<ISCMResourceGroup | ISCMResource>;
 	private menus: SCMMenus;
+
 	private providerChangeDisposable: IDisposable = EmptyDisposable;
 	private disposables: IDisposable[] = [];
 
@@ -258,45 +265,63 @@ export class SCMViewlet extends Viewlet {
 
 		if (activeProvider) {
 			const disposables = [activeProvider.onDidChange(this.update, this)];
-
+			/*
 			if (activeProvider.onDidChangeCommitTemplate) {
 				disposables.push(activeProvider.onDidChangeCommitTemplate(this.updateInputBox, this));
 			}
-
+*			*/
 			this.providerChangeDisposable = combinedDisposable(disposables);
 		} else {
 			this.providerChangeDisposable = EmptyDisposable;
 		}
 
-		this.updateInputBox();
+		//this.updateInputBox();
 		this.updateTitleArea();
 		this.update();
 	}
 
 	create(parent: Builder): TPromise<void> {
 		super.create(parent);
+		/*
 		parent.addClass('scm-viewlet');
 
 		const root = parent.getHTMLElement();
 		this.inputBoxContainer = append(root, $('.scm-editor'));
+		*/
 
+		const root = parent.getHTMLElement();
+
+		let builder: Builder;
+
+		parent.div({
+			'class': 'scm-viewlet'
+		}, (div) => {
+			builder = div;
+		});
+
+		builder.div({ 'class': ['scm-widgets-container'] }, (div) => {
+			this.scmWidgetsContainer = div;
+		});
+		this.createSCMWidget(this.scmWidgetsContainer);
+		/*
 		this.inputBox = new InputBox(this.inputBoxContainer, this.contextViewService, {
 			placeholder: localize('commitMessage', "Message (press {0} to commit)", platform.isMacintosh ? 'Cmd+Enter' : 'Ctrl+Enter'),
 			flexibleHeight: true
 		});
-		this.disposables.push(attachInputBoxStyler(this.inputBox, this.themeService));
-		this.disposables.push(this.inputBox);
+		*/
+		//this.disposables.push(attachInputBoxStyler(this.inputBox, this.themeService));
+		//this.disposables.push(this.inputBox);
 
-		this.inputBox.value = this.scmService.input.value;
-		this.inputBox.onDidChange(value => this.scmService.input.value = value, null, this.disposables);
-		this.scmService.input.onDidChange(value => this.inputBox.value = value, null, this.disposables);
-		this.disposables.push(this.inputBox.onDidHeightChange(() => this.layout()));
-
+		//this.inputBox.value = this.scmService.input.value;
+		//this.inputBox.onDidChange(value => this.scmService.input.value = value, null, this.disposables);
+		//this.scmService.input.onDidChange(value => this.inputBox.value = value, null, this.disposables);
+		//this.disposables.push(this.inputBox.onDidHeightChange(() => this.layout()));
+		/*
 		chain(domEvent(this.inputBox.inputElement, 'keydown'))
 			.map(e => new StandardKeyboardEvent(e))
 			.filter(e => e.equals(KeyMod.CtrlCmd | KeyCode.Enter) || e.equals(KeyMod.CtrlCmd | KeyCode.KEY_S))
 			.on(this.onDidAcceptInput, this, this.disposables);
-
+		*/
 		this.listContainer = append(root, $('.scm-status.show-file-icons'));
 		const delegate = new Delegate();
 
@@ -330,6 +355,37 @@ export class SCMViewlet extends Viewlet {
 		return TPromise.as(null);
 	}
 
+	private createSCMWidget(builder: Builder): void {
+		this.scmWidget = new SCMWidget(builder,
+		this.contextViewService,
+		this.themeService,
+		null,
+		this.contextKeyService,
+		this.keybindingService,
+		this.instantiationService);
+
+		this.toUnbind.push(this.scmWidget);
+		/*
+		this.toUnbind.push(this.searchWidget.onSearchSubmit((refresh) => this.onQueryChanged(refresh)));
+		this.toUnbind.push(this.searchWidget.onSearchCancel(() => this.cancelSearch()));
+		this.toUnbind.push(this.searchWidget.searchInput.onDidOptionChange((viaKeyboard) => this.onQueryChanged(true, viaKeyboard)));
+
+		this.toUnbind.push(this.searchWidget.onReplaceToggled(() => this.onReplaceToggled()));
+		this.toUnbind.push(this.searchWidget.onReplaceStateChange((state) => {
+			this.viewModel.replaceActive = state;
+			this.tree.refresh();
+		}));
+		this.toUnbind.push(this.searchWidget.onReplaceValueChanged((value) => {
+			this.viewModel.replaceString = this.searchWidget.getReplaceValue();
+			this.delayedRefresh.trigger(() => this.tree.refresh());
+		}));
+
+		this.toUnbind.push(this.searchWidget.onReplaceAll(() => this.replaceAll()));
+		this.trackInputBox(this.searchWidget.searchInputFocusTracker);
+		this.trackInputBox(this.searchWidget.replaceInputFocusTracker);
+		*/
+	}
+
 	private onDidAcceptInput(): void {
 		if (!this.activeProvider) {
 			return;
@@ -359,7 +415,7 @@ export class SCMViewlet extends Viewlet {
 
 		this.list.splice(0, this.list.length, elements);
 	}
-
+	/*
 	private updateInputBox(): void {
 		if (!this.activeProvider) {
 			return;
@@ -371,7 +427,7 @@ export class SCMViewlet extends Viewlet {
 
 		this.inputBox.value = this.activeProvider.commitTemplate;
 	}
-
+	*/
 	layout(dimension: Dimension = this.cachedDimension): void {
 		if (!dimension) {
 			return;
@@ -385,14 +441,20 @@ export class SCMViewlet extends Viewlet {
 		this.listContainer.style.height = `${listHeight}px`;
 		this.list.layout(listHeight);
 
-		toggleClass(this.inputBoxContainer, 'scroll', editorHeight >= 134);
+		//toggleClass(this.inputBoxContainer, 'scroll', editorHeight >= 134);
 	}
-/**
- *
-	public get searchAndReplaceWidget(): SCMWidget {
+
+	public get widget(): SCMWidget {
 		return this.scmWidget;
 	}
-*/
+
+	public toggleAnnotate()
+	{
+		//this.widget.
+		//this.searchWidget.searchInput.setCaseSensitive(!this.searchWidget.searchInput.getCaseSensitive());
+		//this.onQueryChanged(true, true);
+	}
+
 	getOptimalWidth(): number {
 		return 400;
 	}

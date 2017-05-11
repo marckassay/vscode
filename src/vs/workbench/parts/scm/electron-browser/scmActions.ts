@@ -63,7 +63,7 @@ export class ToggleAnnotateAction extends Action {
 		return TPromise.as(null);
 	}
 }
-export class OpenSearchViewletAction extends ToggleViewletAction {
+export class OpenSCMViewletAction extends ToggleViewletAction {
 
 	constructor(id: string, label: string, @IViewletService viewletService: IViewletService, @IWorkbenchEditorService editorService: IWorkbenchEditorService) {
 		super(id, label, Constants.VIEWLET_ID, viewletService, editorService);
@@ -78,8 +78,8 @@ export class OpenSearchViewletAction extends ToggleViewletAction {
 				// Get the search viewlet and ensure that 'replace' is collapsed
 				const scmViewlet = this.viewletService.getActiveViewlet();
 				if (scmViewlet && scmViewlet.getId() === Constants.VIEWLET_ID) {
-					const searchAndReplaceWidget = (<SCMViewlet>scmViewlet).searchAndReplaceWidget;
-					searchAndReplaceWidget.toggleReplace(false);
+					const widget = (<SCMViewlet>scmViewlet).widget;
+					widget.toggleTag(false);
 				}
 			}
 		});
@@ -94,9 +94,9 @@ export class CloseReplaceAction extends Action {
 	}
 
 	public run(): TPromise<any> {
-		let searchAndReplaceWidget = (<SCMViewlet>this.viewletService.getActiveViewlet()).searchAndReplaceWidget;
-		searchAndReplaceWidget.toggleReplace(false);
-		searchAndReplaceWidget.focus();
+		let widget = (<SCMViewlet>this.viewletService.getActiveViewlet()).widget;
+		widget.toggleTag(false);
+		widget.focus();
 		return TPromise.as(null);
 	}
 }

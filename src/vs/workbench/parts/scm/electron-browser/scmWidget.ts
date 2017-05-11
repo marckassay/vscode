@@ -219,9 +219,7 @@ export class SCMWidget extends Widget {
 			label: nls.localize('label.Message', 'Message: Type Message Term and press Enter to scm or Escape to cancel'),
 			validation: (value: string) => this.validatMessageInput(value),
 			placeholder: nls.localize('scm.placeHolder', "Message"),
-			appendCaseSensitiveLabel: appendKeyBindingLabel('', this.keyBindingService2.lookupKeybinding(Constants.ToggleCaseSensitiveActionId), this.keyBindingService2),
-			appendWholeWordsLabel: appendKeyBindingLabel('', this.keyBindingService2.lookupKeybinding(Constants.ToggleWholeWordActionId), this.keyBindingService2),
-			appendRegexLabel: appendKeyBindingLabel('', this.keyBindingService2.lookupKeybinding(Constants.ToggleRegexActionId), this.keyBindingService2)
+			appendCaseSensitiveLabel: appendKeyBindingLabel('', this.keyBindingService2.lookupKeybinding(Constants.ToggleAnnotateActionId), this.keyBindingService2)
 		};
 
 		let messageInputContainer = dom.append(parent, dom.$('.scm-container.input-box'));
