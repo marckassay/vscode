@@ -35,7 +35,7 @@ import { IListService } from 'vs/platform/list/browser/listService';
 import { IMenuService, MenuItemAction } from 'vs/platform/actions/common/actions';
 import { IAction, IActionItem, ActionRunner } from 'vs/base/common/actions';
 import { MenuItemActionItem } from 'vs/platform/actions/browser/menuItemActionItem';
-import { SCMWidget } from './scmWidget';
+import { SCMWidget, ISCMWidgetOptions } from './scmWidget';
 import { SCMMenus } from './scmMenus';
 import { ActionBar, IActionItemProvider } from 'vs/base/browser/ui/actionbar/actionbar';
 import { IThemeService, LIGHT } from 'vs/platform/theme/common/themeService';
@@ -364,7 +364,12 @@ export class SCMViewlet extends Viewlet {
 		this.scmWidget = new SCMWidget(builder,
 		this.contextViewService,
 		this.themeService,
-		null,
+		<ISCMWidgetOptions> {
+			value: 'Search',
+			isRegex: false,
+			isCaseSensitive: false,
+			isWholeWords: false
+		},
 		this.contextKeyService,
 		this.keybindingService,
 		this.instantiationService);
