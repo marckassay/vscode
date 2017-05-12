@@ -225,7 +225,7 @@ export class SCMViewlet extends Viewlet {
 	private cachedDimension: Dimension;
 
 	private inputBoxContainer: HTMLElement;
-	private inputBox: InputBox;
+	//private inputBox: InputBox;
 
 	private scmWidgetsContainer: Builder;
 	private scmWidget: SCMWidget;
@@ -258,6 +258,11 @@ export class SCMViewlet extends Viewlet {
 		this.menus.onDidChangeTitle(this.updateTitleArea, this, this.disposables);
 		this.disposables.push(this.menus);
 	}
+
+	get inputBox(): InputBox {
+		return this.scmWidget.messageInput.inputBox;
+	}
+
 
 	private setActiveProvider(activeProvider: ISCMProvider | undefined): void {
 		this.providerChangeDisposable.dispose();
@@ -461,7 +466,7 @@ export class SCMViewlet extends Viewlet {
 
 	focus(): void {
 		super.focus();
-		this.inputBox.focus();
+		//this.inputBox.focus();
 	}
 
 	private open(e: ISCMResource): void {

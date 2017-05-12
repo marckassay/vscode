@@ -75,7 +75,7 @@ export class OpenSCMViewletAction extends ToggleViewletAction {
 
 		return super.run().then(() => {
 			if (!scmViewletWasOpen) {
-				// Get the search viewlet and ensure that 'replace' is collapsed
+				// Get the scm viewlet and ensure that 'tag' is collapsed
 				const scmViewlet = this.viewletService.getActiveViewlet();
 				if (scmViewlet && scmViewlet.getId() === Constants.VIEWLET_ID) {
 					const widget = (<SCMViewlet>scmViewlet).widget;
@@ -101,6 +101,7 @@ export class CloseReplaceAction extends Action {
 	}
 }
 
+/**
 export class ConfigureGlobalExclusionsAction extends Action {
 
 	constructor( @IPreferencesService private preferencesService: IPreferencesService) {
@@ -115,7 +116,6 @@ export class ConfigureGlobalExclusionsAction extends Action {
 		return this.preferencesService.openGlobalSettings().then(null, errors.onUnexpectedError);
 	}
 }
-/**
 export class ToggleWholeWordAction extends Action {
 
 	constructor(id: string, label: string, @IViewletService private viewletService: IViewletService) {

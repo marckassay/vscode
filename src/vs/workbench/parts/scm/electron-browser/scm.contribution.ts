@@ -20,17 +20,10 @@ import { SyncActionDescriptor } from 'vs/platform/actions/common/actions';
 import { ISCMService } from 'vs/workbench/services/scm/common/scm';
 import { IViewletService } from 'vs/workbench/services/viewlet/browser/viewlet';
 import { IWorkbenchEditorService } from 'vs/workbench/services/editor/common/editorService';
+import { OpenSCMViewletAction } from './scmActions';
+
 import { StatusUpdater } from './scmActivity';
 
-class OpenSCMViewletAction extends ToggleViewletAction {
-
-	static ID = VIEWLET_ID;
-	static LABEL = localize('toggleGitViewlet', "Show Git");
-
-	constructor(id: string, label: string, @IViewletService viewletService: IViewletService, @IWorkbenchEditorService editorService: IWorkbenchEditorService) {
-		super(id, label, VIEWLET_ID, viewletService, editorService);
-	}
-}
 
 export class SwitchProvider extends Action {
 
@@ -85,6 +78,19 @@ Registry.as<IWorkbenchActionRegistry>(WorkbenchActionExtensions.WorkbenchActions
 	'View: Show SCM',
 	localize('view', "View")
 );
+/*
+class OpenSCMViewletAction extends ToggleViewletAction {
+
+	static ID = VIEWLET_ID;
+	static LABEL = localize('toggleGitViewlet', "Show Git");
+
+	constructor(id: string, label: string, @IViewletService viewletService: IViewletService, @IWorkbenchEditorService editorService: IWorkbenchEditorService) {
+		super(id, label, VIEWLET_ID, viewletService, editorService);
+	}
+}
+*/
+
+
 
 Registry.as<IWorkbenchActionRegistry>(WorkbenchActionExtensions.WorkbenchActions)
 	.registerWorkbenchAction(new SyncActionDescriptor(SwitchProvider, SwitchProvider.ID, SwitchProvider.LABEL), 'SCM: Switch Provider', 'SCM');

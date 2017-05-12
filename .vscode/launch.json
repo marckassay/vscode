@@ -149,6 +149,7 @@
 			"runtimeArgs": [
 				"--debug=5875"
 			],
+			"sourceMaps": false,
 			"webRoot": "${workspaceRoot}"
 		},
 		{
