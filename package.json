@@ -2,7 +2,7 @@
   "name": "code-oss-dev",
   "version": "1.13.0",
   "electronVersion": "1.6.6",
-  "distro": "866fd532378acbb246f02ed97397e3f0f4dbc345",
+  "distro": "a19a3b432030a478afa61b438c9a0dfd8f84f893",
   "author": {
     "name": "Microsoft Corporation"
   },
@@ -33,7 +33,7 @@
     "iconv-lite": "0.4.15",
     "jschardet": "^1.4.2",
     "minimist": "1.2.0",
-    "native-keymap": "1.2.3",
+    "native-keymap": "1.2.4",
     "node-pty": "0.6.4",
     "semver": "4.3.6",
     "v8-profiler": "jrieken/v8-profiler#vscode",
@@ -63,7 +63,7 @@
     "flatpak-bundler": "^0.1.1",
     "glob": "^5.0.13",
     "gulp": "^3.8.9",
-    "gulp-atom-electron": "^1.9.0",
+    "gulp-atom-electron": "^1.11.0",
     "gulp-azure-storage": "^0.7.0",
     "gulp-bom": "^1.0.0",
     "gulp-buffer": "0.0.2",

@@ -271,7 +271,7 @@ export class CallStackController extends BaseDebugController {
 		const process = this.debugService.getModel().getProcesses().filter(p => p.getId() === threadAndProcessIds.processId).pop();
 		const thread = process && process.getThread(threadAndProcessIds.threadId);
 		if (thread) {
-			(<Thread>thread).fetchCallStack(true)
+			(<Thread>thread).fetchCallStack()
 				.done(() => tree.refresh(), errors.onUnexpectedError);
 		}
 
@@ -351,7 +351,7 @@ export class CallStackDataSource implements IDataSource {
 
 	public getChildren(tree: ITree, element: any): TPromise<any> {
 		if (element instanceof Thread) {
-			return this.getThreadChildren(element);
+			return TPromise.as(this.getThreadChildren(element));
 		}
 		if (element instanceof Model) {
 			return TPromise.as(element.getProcesses());
@@ -361,17 +361,25 @@ export class CallStackDataSource implements IDataSource {
 		return TPromise.as(process.getAllThreads());
 	}
 
-	private getThreadChildren(thread: Thread): TPromise<any> {
-		return thread.fetchCallStack().then((callStack: any[]) => {
-			if (thread.stoppedDetails && thread.stoppedDetails.framesErrorMessage) {
-				return callStack.concat([thread.stoppedDetails.framesErrorMessage]);
-			}
-			if (thread.stoppedDetails && thread.stoppedDetails.totalFrames > callStack.length) {
-				return callStack.concat([new ThreadAndProcessIds(thread.process.getId(), thread.threadId)]);
-			}
+	private getThreadChildren(thread: Thread): any[] {
+		const callStack: any[] = thread.getCallStack();
+		if (!callStack) {
+			return [];
+		}
+		if (callStack.length === 1) {
+			// To reduce flashing of the call stack view simply append the stale call stack
+			// once we have the correct data the tree will refresh and we will no longer display it.
+			return callStack.concat(thread.getStaleCallStack().slice(1));
+		}
 
-			return callStack;
-		});
+		if (thread.stoppedDetails && thread.stoppedDetails.framesErrorMessage) {
+			return callStack.concat([thread.stoppedDetails.framesErrorMessage]);
+		}
+		if (thread.stoppedDetails && thread.stoppedDetails.totalFrames > callStack.length && callStack.length > 1) {
+			return callStack.concat([new ThreadAndProcessIds(thread.process.getId(), thread.threadId)]);
+		}
+
+		return callStack;
 	}
 
 	public getParent(tree: ITree, element: any): TPromise<any> {
