@@ -82,12 +82,9 @@
 }
 
 .scm-viewlet > .scm-editor {
-	padding: 5px 9px 5px 16px;
-}
-
-.scm-viewlet > .scm-editor {
 	box-sizing: border-box;
 	padding: 5px 9px 5px 16px;
+	position: relative;
 }
 
 .scm-viewlet > .scm-editor > .monaco-inputbox {
@@ -104,4 +101,87 @@
 
 .scm-viewlet > .scm-editor.scroll > .monaco-inputbox > .wrapper > textarea.input {
 	overflow-y: scroll;
+}
+
+.scm-viewlet .scm-editor .toggle-tag-button {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 16px;
+	height: 100%;
+
+	-webkit-box-sizing: border-box;
+	-o-box-sizing: border-box;
+	-moz-box-sizing: border-box;
+	-ms-box-sizing: border-box;
+	box-sizing: border-box;
+
+	background-position: center center;
+	background-repeat: no-repeat;
+	cursor: pointer;
+}
+
+.vs .scm-viewlet .scm-editor .toggle-tag-button:hover {
+	background-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+.vs-dark .scm-viewlet .scm-editor .toggle-tag-button:hover {
+	background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.vs .scm-viewlet .scm-editor .toggle-tag-button.collapse {
+	background-image: url('expando-collapsed.svg');
+}
+
+.vs .scm-viewlet .scm-editor .toggle-tag-button.expand {
+	background-image: url('expando-expanded.svg');
+}
+.vs-dark .scm-viewlet .scm-editor .toggle-tag-button.expand,
+.hc-black .scm-viewlet .scm-editor .toggle-tag-button.expand {
+	background-image: url('expando-expanded-dark.svg');
+}
+
+.vs-dark .scm-viewlet .scm-editor .toggle-tag-button.collapse,
+.hc-black .scm-viewlet .scm-editor .toggle-tag-button.collapse {
+	background-image: url('expando-collapsed-dark.svg');
+}
+
+
+
+
+
+
+.scm-viewlet .scm-editor .input-container,
+.scm-viewlet .scm-editor .tag-container {
+	margin-left: 17px;
+}
+
+.scm-viewlet .scm-editor .input-box,
+.scm-viewlet .scm-editor .input-box .monaco-inputbox {
+	height: 25px;
+}
+
+.scm-viewlet .scm-editor .monaco-findInput {
+	display: inline-block;
+	vertical-align: middle;
+}
+
+.scm-viewlet .scm-editor .tag-container {
+	margin-top: 6px;
+	position: relative;
+	display: inline-flex;
+}
+
+.scm-viewlet .scm-editor .tag-container.disabled {
+	display: none;
+}
+
+.scm-viewlet .scm-editor .tag-container .monaco-action-bar {
+	margin-left: 3px;
+}
+
+.scm-viewlet .scm-editor .tag-container .monaco-action-bar .action-item .icon {
+	background-repeat: no-repeat;
+	width: 20px;
+	height: 25px;
 }

@@ -12,6 +12,7 @@ import { chain } from 'vs/base/common/event';
 import { onUnexpectedError } from 'vs/base/common/errors';
 import * as platform from 'vs/base/common/platform';
 import { domEvent } from 'vs/base/browser/event';
+import { Button } from 'vs/base/browser/ui/button/button';
 import { IDisposable, dispose, empty as EmptyDisposable, combinedDisposable } from 'vs/base/common/lifecycle';
 import { Builder, Dimension } from 'vs/base/browser/builder';
 import { Viewlet } from 'vs/workbench/browser/viewlet';
@@ -42,8 +43,10 @@ import { InputBox } from 'vs/base/browser/ui/inputbox/inputBox';
 import { IModelService } from 'vs/editor/common/services/modelService';
 import { comparePaths } from 'vs/base/common/comparers';
 import { isSCMResource } from './scmUtil';
-import { attachInputBoxStyler, attachListStyler, attachBadgeStyler } from 'vs/platform/theme/common/styler';
+import { attachInputBoxStyler, attachListStyler, attachBadgeStyler, attachButtonStyler } from 'vs/platform/theme/common/styler';
 import Severity from 'vs/base/common/severity';
+import { SIDE_BAR_BACKGROUND } from 'vs/workbench/common/theme';
+
 
 // TODO@Joao
 // Need to subclass MenuItemActionItem in order to respect
@@ -222,10 +225,12 @@ export class SCMViewlet extends Viewlet {
 
 	private activeProvider: ISCMProvider | undefined;
 	private cachedDimension: Dimension;
+	private scmEditorElement: HTMLElement;
 	private inputBoxContainer: HTMLElement;
 	private inputBox: InputBox;
-	private tagBoxContainer: HTMLElement;
+	private tagContainer: HTMLElement;
 	private tagBox: InputBox;
+	private toggleTagButton: Button;
 	private listContainer: HTMLElement;
 	private list: List<ISCMResourceGroup | ISCMResource>;
 	private menus: SCMMenus;
@@ -277,14 +282,14 @@ export class SCMViewlet extends Viewlet {
 
 	create(parent: Builder): TPromise<void> {
 		super.create(parent);
+		parent.addClass('scm-viewlet');
 
-		parent.div({
-			'class': 'scm-viewlet'
-		},(div) => {
-		 	this.inputBoxContainer = div.div({ 'class': 'scm-editor'}).getHTMLElement();
-		 	this.tagBoxContainer = div.div({ 'class': 'scm-editor'}).getHTMLElement();
-			this.listContainer = div.div({ 'class': 'scm-status.show-file-icons'}).getHTMLElement();
+		parent.div({ 'class': 'scm-editor' }, (builder) => {
+			this.scmEditorElement = builder.getHTMLElement();
+			this.inputBoxContainer = builder.div({ 'class': 'input-container' }).getHTMLElement();
+			this.tagContainer = builder.div({ 'class': 'tag-container' }).getHTMLElement();
 		});
+		this.listContainer = parent.div({ 'class': 'scm-status.show-file-icons' }).getHTMLElement();
 
 		this.inputBox = new InputBox(this.inputBoxContainer, this.contextViewService, {
 			placeholder: localize('commitMessage', "Message (press {0} to commit)", platform.isMacintosh ? 'Cmd+Enter' : 'Ctrl+Enter'),
@@ -303,8 +308,7 @@ export class SCMViewlet extends Viewlet {
 			.filter(e => e.equals(KeyMod.CtrlCmd | KeyCode.Enter) || e.equals(KeyMod.CtrlCmd | KeyCode.KEY_S))
 			.on(this.onDidAcceptInput, this, this.disposables);
 
-
-		this.tagBox = new InputBox(this.tagBoxContainer, this.contextViewService, {
+		this.tagBox = new InputBox(this.tagContainer, this.contextViewService, {
 			placeholder: localize('tagMessage', "Lorem Ipsum"),
 			flexibleHeight: true
 		});
@@ -321,6 +325,7 @@ export class SCMViewlet extends Viewlet {
 			.filter(e => e.equals(KeyMod.CtrlCmd | KeyCode.Enter) || e.equals(KeyMod.CtrlCmd | KeyCode.KEY_S))
 			.on(this.onDidAcceptInput, this, this.disposables);
 		*/
+		this.createToggleTagButton(this.scmEditorElement);
 
 		const delegate = new Delegate();
 
@@ -352,6 +357,25 @@ export class SCMViewlet extends Viewlet {
 		this.themeService.onThemeChange(this.update, this, this.disposables);
 
 		return TPromise.as(null);
+	}
+
+	private createToggleTagButton(container: HTMLElement): void {
+		this.toggleTagButton = this._register(new Button(container));
+
+		attachButtonStyler(this.toggleTagButton, this.themeService, {
+			buttonBackground: SIDE_BAR_BACKGROUND,
+			buttonHoverBackground: SIDE_BAR_BACKGROUND
+		});
+
+		this.toggleTagButton.icon = 'toggle-tag-button collapse';
+		this.toggleTagButton.addListener('click', () => this.onToggleTagButton());
+		this.toggleTagButton.getElement().title = localize('scm.tag.toggle.button.title', "Toggle Tag");
+	}
+
+	private onToggleTagButton(): void {
+		toggleClass(this.tagContainer, 'disabled');
+		toggleClass(this.toggleTagButton.getElement(), 'collapse');
+		toggleClass(this.toggleTagButton.getElement(), 'expand');
 	}
 
 	private onDidAcceptInput(): void {
