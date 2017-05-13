@@ -444,6 +444,7 @@ export class SCMViewlet extends Viewlet {
 		}
 
 		this.cachedDimension = dimension;
+
 		this.inputBox.layout();
 
 		const editorHeight = this.inputBox.height;
@@ -451,7 +452,7 @@ export class SCMViewlet extends Viewlet {
 		this.listContainer.style.height = `${listHeight}px`;
 		this.list.layout(listHeight);
 
-		//toggleClass(this.inputBoxContainer, 'scroll', editorHeight >= 134);
+		toggleClass(this.inputBoxContainer, 'scroll', editorHeight >= 134);
 	}
 
 	public get widget(): SCMWidget {

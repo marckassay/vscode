@@ -105,3 +105,66 @@
 .scm-viewlet > .scm-editor.scroll > .monaco-inputbox > .wrapper > textarea.input {
 	overflow-y: scroll;
 }
+
+
+
+
+
+
+.scm-viewlet .scm-widgets-container {
+	margin: 0px 9px 0 2px;
+	padding-top: 6px;
+}
+
+.scm-viewlet .scm-widget .toggle-tag-button {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 16px;
+	height: 100%;
+
+	-webkit-box-sizing: border-box;
+	-o-box-sizing: border-box;
+	-moz-box-sizing: border-box;
+	-ms-box-sizing: border-box;
+	box-sizing: border-box;
+
+	background-position: center center;
+	background-repeat: no-repeat;
+	cursor: pointer;
+}
+
+.scm-viewlet .scm-widget .scm-container,
+.scm-viewlet .scm-widget .tag-container {
+	margin-left: 17px;
+}
+
+.scm-viewlet .scm-widget .input-box,
+.scm-viewlet .scm-widget .input-box .monaco-inputbox {
+	height: 25px;
+}
+
+.scm-viewlet .scm-widget .monaco-findInput {
+	display: inline-block;
+	vertical-align: middle;
+}
+
+.scm-viewlet .scm-widget .tag-container {
+	margin-top: 6px;
+	position: relative;
+	display: inline-flex;
+}
+
+.scm-viewlet .scm-widget .tag-container.disabled {
+	display: none;
+}
+
+.scm-viewlet .scm-widget .tag-container .monaco-action-bar {
+	margin-left: 3px;
+}
+
+.scm-viewlet .scm-widget .tag-container .monaco-action-bar .action-item .icon {
+	background-repeat: no-repeat;
+	width: 20px;
+	height: 25px;
+}
