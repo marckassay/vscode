@@ -224,6 +224,8 @@ export class SCMViewlet extends Viewlet {
 	private cachedDimension: Dimension;
 	private inputBoxContainer: HTMLElement;
 	private inputBox: InputBox;
+	private tagBoxContainer: HTMLElement;
+	private tagBox: InputBox;
 	private listContainer: HTMLElement;
 	private list: List<ISCMResourceGroup | ISCMResource>;
 	private menus: SCMMenus;
@@ -275,10 +277,14 @@ export class SCMViewlet extends Viewlet {
 
 	create(parent: Builder): TPromise<void> {
 		super.create(parent);
-		parent.addClass('scm-viewlet');
 
-		const root = parent.getHTMLElement();
-		this.inputBoxContainer = append(root, $('.scm-editor'));
+		parent.div({
+			'class': 'scm-viewlet'
+		},(div) => {
+		 	this.inputBoxContainer = div.div({ 'class': 'scm-editor'}).getHTMLElement();
+		 	this.tagBoxContainer = div.div({ 'class': 'scm-editor'}).getHTMLElement();
+			this.listContainer = div.div({ 'class': 'scm-status.show-file-icons'}).getHTMLElement();
+		});
 
 		this.inputBox = new InputBox(this.inputBoxContainer, this.contextViewService, {
 			placeholder: localize('commitMessage', "Message (press {0} to commit)", platform.isMacintosh ? 'Cmd+Enter' : 'Ctrl+Enter'),
@@ -297,7 +303,25 @@ export class SCMViewlet extends Viewlet {
 			.filter(e => e.equals(KeyMod.CtrlCmd | KeyCode.Enter) || e.equals(KeyMod.CtrlCmd | KeyCode.KEY_S))
 			.on(this.onDidAcceptInput, this, this.disposables);
 
-		this.listContainer = append(root, $('.scm-status.show-file-icons'));
+
+		this.tagBox = new InputBox(this.tagBoxContainer, this.contextViewService, {
+			placeholder: localize('tagMessage', "Lorem Ipsum"),
+			flexibleHeight: true
+		});
+		this.disposables.push(attachInputBoxStyler(this.tagBox, this.themeService));
+		this.disposables.push(this.tagBox);
+
+		this.tagBox.value = this.scmService.tagInput.value;
+		this.tagBox.onDidChange(value => this.scmService.tagInput.value = value, null, this.disposables);
+		this.scmService.tagInput.onDidChange(value => this.tagBox.value = value, null, this.disposables);
+		this.disposables.push(this.tagBox.onDidHeightChange(() => this.layout()));
+		/*
+		chain(domEvent(this.tagBox.inputElement, 'keydown'))
+			.map(e => new StandardKeyboardEvent(e))
+			.filter(e => e.equals(KeyMod.CtrlCmd | KeyCode.Enter) || e.equals(KeyMod.CtrlCmd | KeyCode.KEY_S))
+			.on(this.onDidAcceptInput, this, this.disposables);
+		*/
+
 		const delegate = new Delegate();
 
 		const actionItemProvider = action => this.getActionItem(action);
@@ -370,6 +394,8 @@ export class SCMViewlet extends Viewlet {
 		}
 
 		this.inputBox.value = this.activeProvider.commitTemplate;
+
+		this.tagBox.value = '';
 	}
 
 	layout(dimension: Dimension = this.cachedDimension): void {
@@ -379,12 +405,14 @@ export class SCMViewlet extends Viewlet {
 
 		this.cachedDimension = dimension;
 		this.inputBox.layout();
+		this.tagBox.layout();
 
-		const editorHeight = this.inputBox.height;
+		const editorHeight = this.inputBox.height + this.tagBox.height;
 		const listHeight = dimension.height - (editorHeight + 12 /* margin */);
 		this.listContainer.style.height = `${listHeight}px`;
 		this.list.layout(listHeight);
 
+		// TODO: need to consider tagBoxContainer too...
 		toggleClass(this.inputBoxContainer, 'scroll', editorHeight >= 134);
 	}
 

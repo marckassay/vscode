@@ -65,6 +65,7 @@ export interface ISCMService {
 	readonly onDidChangeProvider: Event<ISCMProvider>;
 	readonly providers: ISCMProvider[];
 	readonly input: ISCMInput;
+	readonly tagInput: ISCMInput;
 	activeProvider: ISCMProvider | undefined;
 
 	registerSCMProvider(provider: ISCMProvider): IDisposable;

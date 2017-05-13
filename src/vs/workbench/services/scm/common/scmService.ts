@@ -58,6 +58,9 @@ export class SCMService implements ISCMService {
 	@memoize
 	get input(): ISCMInput { return new SCMInput(); }
 
+	@memoize
+	get tagInput(): ISCMInput { return new SCMInput(); }
+
 	constructor(
 		@IContextKeyService contextKeyService: IContextKeyService,
 		@IStorageService private storageService: IStorageService,
