@@ -408,9 +408,9 @@ export class Model implements Disposable {
 		await this.run(Operation.RevertFiles, () => this.repository.revertFiles('HEAD', resources.map(r => r.resourceUri.fsPath)));
 	}
 
-	async tag(tagname: string, annotate: boolean = false, message?: string): Promise<void>
+	async tag(tagname: string, annotate: boolean = false): Promise<void>
 	{
-		await this.run(Operation.Tag, () => this.repository.tag(tagname, annotate, message));
+		await this.run(Operation.Tag, () => this.repository.tag(tagname, annotate));
 	}
 
 	async commit(message: string, opts: CommitOptions = Object.create(null)): Promise<void> {

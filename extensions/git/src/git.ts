@@ -605,17 +605,13 @@ export class Repository {
 		}
 	}
 
-	async tag(tagname: string, annotate: boolean = false, message?: string): Promise<void> {
+	async tag(tagname: string, annotate: boolean = false): Promise<void> {
        const args = ['tag'];
 
 		args.push(tagname);
 
 		if(annotate) {
 			args.push('--annotate');
-		}
-
-		if(message) {
-			args.push('--message '+message);
 		}
 
         try {

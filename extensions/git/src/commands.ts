@@ -577,10 +577,6 @@ export class CommandCenter {
 
 		await this.model.commit(message, opts);
 
-		if(scm.tag.value) {
-			await this.model.tag(scm.tag.value);
-		}
-
 		return true;
 	}
 
@@ -602,6 +598,12 @@ export class CommandCenter {
 
 		if (message && didCommit) {
 			scm.commit.value = await this.model.getCommitTemplate();
+
+			if(scm.tag.value) {
+				await this.model.tag(scm.tag.value);
+
+				scm.tag.value = '';
+			}
 		}
 	}
 
@@ -620,6 +622,12 @@ export class CommandCenter {
 
 		if (didCommit) {
 			scm.commit.value = await this.model.getCommitTemplate();
+
+			if(scm.tag.value) {
+				await this.model.tag(scm.tag.value);
+
+				scm.tag.value = '';
+			}
 		}
 	}
 
