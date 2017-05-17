@@ -16,7 +16,7 @@ import { Button } from 'vs/base/browser/ui/button/button';
 import { IDisposable, dispose, empty as EmptyDisposable, combinedDisposable } from 'vs/base/common/lifecycle';
 import { Builder, Dimension } from 'vs/base/browser/builder';
 import { Viewlet } from 'vs/workbench/browser/viewlet';
-import { append, $, toggleClass } from 'vs/base/browser/dom';
+import { append, $, toggleClass, hasClass } from 'vs/base/browser/dom';
 import { StandardKeyboardEvent } from 'vs/base/browser/keyboardEvent';
 import { KeyCode, KeyMod } from 'vs/base/common/keyCodes';
 import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
@@ -26,6 +26,7 @@ import { VIEWLET_ID } from 'vs/workbench/parts/scm/common/scm';
 import { FileLabel } from 'vs/workbench/browser/labels';
 import { CountBadge } from 'vs/base/browser/ui/countBadge/countBadge';
 import { ISCMService, ISCMProvider, ISCMResourceGroup, ISCMResource } from 'vs/workbench/services/scm/common/scm';
+import { IStorageService, StorageScope } from 'vs/platform/storage/common/storage';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
 import { IContextViewService, IContextMenuService } from 'vs/platform/contextview/browser/contextView';
 import { IContextKeyService } from 'vs/platform/contextkey/common/contextkey';
@@ -223,6 +224,7 @@ function resourceSorter(a: ISCMResource, b: ISCMResource): number {
 
 export class SCMViewlet extends Viewlet {
 
+	private static SHOW_TAG_STORAGE_KEY = 'vs.scm.show.tag';
 	private activeProvider: ISCMProvider | undefined;
 	private cachedDimension: Dimension;
 	private scmEditorElement: HTMLElement;
@@ -250,6 +252,7 @@ export class SCMViewlet extends Viewlet {
 		@IThemeService protected themeService: IThemeService,
 		@IMenuService private menuService: IMenuService,
 		@IModelService private modelService: IModelService,
+		@IStorageService private storageService: IStorageService,
 		@ICommandService private commandService: ICommandService
 	) {
 		super(VIEWLET_ID, telemetryService, themeService);
@@ -319,12 +322,7 @@ export class SCMViewlet extends Viewlet {
 		this.tagInputBox.onDidChange(value => this.scmService.tag.value = value, null, this.disposables);
 		this.scmService.tag.onDidChange(value => this.tagInputBox.value = value, null, this.disposables);
 		this.disposables.push(this.tagInputBox.onDidHeightChange(() => this.layout()));
-		/*
-		chain(domEvent(this.tagBox.inputElement, 'keydown'))
-			.map(e => new StandardKeyboardEvent(e))
-			.filter(e => e.equals(KeyMod.CtrlCmd | KeyCode.Enter) || e.equals(KeyMod.CtrlCmd | KeyCode.KEY_S))
-			.on(this.onDidAcceptInput, this, this.disposables);
-		*/
+
 		this.createToggleTagButton(this.scmEditorElement);
 
 		const delegate = new Delegate();
@@ -367,15 +365,26 @@ export class SCMViewlet extends Viewlet {
 			buttonHoverBackground: SIDE_BAR_BACKGROUND
 		});
 
-		this.toggleTagButton.icon = 'toggle-tag-button collapse';
+		this.toggleTagButton.icon = 'toggle-tag-button expand';
 		this.toggleTagButton.addListener('click', () => this.onToggleTagButton());
 		this.toggleTagButton.getElement().title = localize('scm.tag.toggle.button.title', "Toggle Tag");
+
+		const showTag = this.storageService.getBoolean(SCMViewlet.SHOW_TAG_STORAGE_KEY, StorageScope.WORKSPACE, true);
+		if(showTag === false) {
+			this.onToggleTagButton();
+		}
+	}
+
+	public isTagShown(): boolean {
+		return !hasClass(this.tagContainer, 'disabled');
 	}
 
 	private onToggleTagButton(): void {
 		toggleClass(this.tagContainer, 'disabled');
 		toggleClass(this.toggleTagButton.getElement(), 'collapse');
 		toggleClass(this.toggleTagButton.getElement(), 'expand');
+
+		this.storageService.store(SCMViewlet.SHOW_TAG_STORAGE_KEY, this.isTagShown(), StorageScope.WORKSPACE);
 	}
 
 	private onDidAcceptInput(): void {
