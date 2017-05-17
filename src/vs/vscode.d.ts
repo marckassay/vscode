@@ -4633,7 +4633,7 @@ declare module 'vscode' {
 	}
 
 	/**
-	 * Represents the input box in the Source Control viewlet.
+	 * Represents an input box in the Source Control viewlet.
 	 */
 	export interface SourceControlInputBox {
 
@@ -4822,9 +4822,14 @@ declare module 'vscode' {
 	export namespace scm {
 
 		/**
-		 * The [input box](#SourceControlInputBox) in the Source Control viewlet.
+		 * The message [input box](#SourceControlInputBox) in the Source Control viewlet.
 		 */
-		export const inputBox: SourceControlInputBox;
+		export const commit: SourceControlInputBox;
+
+		/**
+		 * The tag [input box](#SourceControlInputBox) in the Source Control viewlet.
+		 */
+		export const tag: SourceControlInputBox;
 
 		/**
 		 * Creates a new [source control](#SourceControl) instance.

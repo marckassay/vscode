@@ -577,11 +577,15 @@ export class CommandCenter {
 
 		await this.model.commit(message, opts);
 
+		if(scm.tag.value) {
+			await this.model.tag(scm.tag.value);
+		}
+
 		return true;
 	}
 
 	private async commitWithAnyInput(opts?: CommitOptions): Promise<void> {
-		const message = scm.inputBox.value;
+		const message = scm.commit.value;
 		const getCommitMessage = async () => {
 			if (message) {
 				return message;
@@ -597,7 +601,7 @@ export class CommandCenter {
 		const didCommit = await this.smartCommit(getCommitMessage, opts);
 
 		if (message && didCommit) {
-			scm.inputBox.value = await this.model.getCommitTemplate();
+			scm.commit.value = await this.model.getCommitTemplate();
 		}
 	}
 
@@ -608,14 +612,14 @@ export class CommandCenter {
 
 	@command('git.commitWithInput')
 	async commitWithInput(): Promise<void> {
-		if (!scm.inputBox.value) {
+		if (!scm.commit.value) {
 			return;
 		}
 
-		const didCommit = await this.smartCommit(async () => scm.inputBox.value);
+		const didCommit = await this.smartCommit(async () => scm.commit.value);
 
 		if (didCommit) {
-			scm.inputBox.value = await this.model.getCommitTemplate();
+			scm.commit.value = await this.model.getCommitTemplate();
 		}
 	}
 
@@ -649,7 +653,7 @@ export class CommandCenter {
 
 		const commit = await this.model.getCommit('HEAD');
 		await this.model.reset('HEAD~');
-		scm.inputBox.value = commit.message;
+		scm.commit.value = commit.message;
 	}
 
 	@command('git.checkout')

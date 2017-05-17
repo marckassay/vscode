@@ -463,12 +463,16 @@ export function createApiFactory(
 				return extHostSCM.onDidChangeActiveProvider;
 			}
 
-			get inputBox() {
-				return extHostSCM.inputBox;
+			get commit() {
+				return extHostSCM.commit;
+			}
+
+			get tag() {
+				return extHostSCM.tag;
 			}
 
 			get onDidAcceptInputValue() {
-				return mapEvent(extHostSCM.inputBox.onDidAccept, () => extHostSCM.inputBox);
+				return mapEvent(extHostSCM.commit.onDidAccept, () => extHostSCM.commit);
 			}
 
 			createSourceControl(id: string, label: string) {

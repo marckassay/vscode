@@ -33,7 +33,7 @@ export class ExtHostSCMInputBox {
 	}
 
 	set value(value: string) {
-		this._proxy.$setInputBoxValue(value);
+		this._proxySetInputBox(value);
 		this.updateValue(value);
 	}
 
@@ -49,7 +49,7 @@ export class ExtHostSCMInputBox {
 		return this._onDidAccept.event;
 	}
 
-	constructor(private _proxy: MainThreadSCMShape) {
+	constructor(private _proxySetInputBox: Function) {
 		// noop
 	}
 
@@ -267,15 +267,19 @@ export class ExtHostSCM {
 	private _activeProvider: vscode.SourceControl | undefined;
 	get activeProvider(): vscode.SourceControl | undefined { return this._activeProvider; }
 
-	private _inputBox: ExtHostSCMInputBox;
-	get inputBox(): ExtHostSCMInputBox { return this._inputBox; }
+	private _commit: ExtHostSCMInputBox;
+	get commit(): ExtHostSCMInputBox { return this._commit; }
+
+	private _tag: ExtHostSCMInputBox;
+	get tag(): ExtHostSCMInputBox { return this._tag; }
 
 	constructor(
 		threadService: IThreadService,
 		private _commands: ExtHostCommands
 	) {
 		this._proxy = threadService.get(MainContext.MainThreadSCM);
-		this._inputBox = new ExtHostSCMInputBox(this._proxy);
+		this._commit = new ExtHostSCMInputBox(this._proxy.$setCommitInputBoxValue);
+		this._tag = new ExtHostSCMInputBox(this._proxy.$setTagInputBoxValue);
 
 		_commands.registerArgumentProcessor({
 			processArgument: arg => {
@@ -331,13 +335,23 @@ export class ExtHostSCM {
 		return TPromise.as(null);
 	}
 
-	$onInputBoxValueChange(value: string): TPromise<void> {
-		this._inputBox.$onInputBoxValueChange(value);
+	$onCommitInputBoxValueChange(value: string): TPromise<void> {
+		this._commit.$onInputBoxValueChange(value);
 		return TPromise.as(null);
 	}
 
-	$onInputBoxAcceptChanges(): TPromise<void> {
-		this._inputBox.$onInputBoxAcceptChanges();
+	$onCommitInputBoxAcceptChanges(): TPromise<void> {
+		this._commit.$onInputBoxAcceptChanges();
+		return TPromise.as(null);
+	}
+
+	$onTagInputBoxValueChange(value: string): TPromise<void> {
+		this._tag.$onInputBoxValueChange(value);
+		return TPromise.as(null);
+	}
+
+	$onTagInputBoxAcceptChanges(): TPromise<void> {
+		this._tag.$onInputBoxAcceptChanges();
 		return TPromise.as(null);
 	}
 }

@@ -341,7 +341,8 @@ export abstract class MainThreadSCMShape {
 	$updateGroupResourceStates(sourceControlHandle: number, groupHandle: number, resources: SCMRawResource[]): void { throw ni(); }
 	$unregisterGroup(sourceControlHandle: number, handle: number): void { throw ni(); }
 
-	$setInputBoxValue(value: string): void { throw ni(); }
+	$setCommitInputBoxValue(value: string): void { throw ni(); }
+	$setTagInputBoxValue(value: string): void { throw ni(); }
 }
 
 // -- extension host
@@ -486,8 +487,10 @@ export abstract class ExtHostTerminalServiceShape {
 export abstract class ExtHostSCMShape {
 	$provideOriginalResource(sourceControlHandle: number, uri: URI): TPromise<URI> { throw ni(); }
 	$onActiveSourceControlChange(sourceControlHandle: number): TPromise<void> { throw ni(); }
-	$onInputBoxValueChange(value: string): TPromise<void> { throw ni(); }
-	$onInputBoxAcceptChanges(): TPromise<void> { throw ni(); }
+	$onCommitInputBoxValueChange(value: string): TPromise<void> { throw ni(); }
+	$onCommitInputBoxAcceptChanges(): TPromise<void> { throw ni(); }
+	$onTagInputBoxValueChange(value: string): TPromise<void> { throw ni(); }
+	$onTagInputBoxAcceptChanges(): TPromise<void> { throw ni(); }
 }
 
 export abstract class ExtHostTaskShape {

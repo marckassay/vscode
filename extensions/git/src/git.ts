@@ -23,6 +23,7 @@ export interface IGit {
 
 export interface PushOptions {
 	setUpstream?: boolean;
+	tags?: boolean;
 }
 
 export interface IFileStatus {
@@ -603,6 +604,27 @@ export class Repository {
 			throw err;
 		}
 	}
+
+	async tag(tagname: string, annotate: boolean = false, message?: string): Promise<void> {
+       const args = ['tag'];
+
+		args.push(tagname);
+
+		if(annotate) {
+			args.push('--annotate');
+		}
+
+		if(message) {
+			args.push('--message '+message);
+		}
+
+        try {
+            await this.run(args);
+        } catch (err) {
+			// if err is caught, then it might have been from an existing tag with same name.
+            throw err;
+        }
+    }
 
 	async commit(message: string, opts: { all?: boolean, amend?: boolean, signoff?: boolean } = Object.create(null)): Promise<void> {
 		const args = ['commit', '--quiet', '--allow-empty-message', '--file', '-'];

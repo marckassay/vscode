@@ -11,7 +11,7 @@ import Event, { Emitter } from 'vs/base/common/event';
 import { assign } from 'vs/base/common/objects';
 import { IDisposable, dispose } from 'vs/base/common/lifecycle';
 import { IThreadService } from 'vs/workbench/services/thread/common/threadService';
-import { ISCMService, ISCMProvider, ISCMResource, ISCMResourceGroup, ISCMResourceDecorations } from 'vs/workbench/services/scm/common/scm';
+import { ISCMService, ISCMInput, ISCMProvider, ISCMResource, ISCMResourceGroup, ISCMResourceDecorations } from 'vs/workbench/services/scm/common/scm';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
 import { ICommandService } from 'vs/platform/commands/common/commands';
 import { ExtHostContext, MainThreadSCMShape, ExtHostSCMShape, SCMProviderFeatures, SCMRawResource, SCMGroupFeatures } from '../node/extHost.protocol';
@@ -211,6 +211,9 @@ export class MainThreadSCM extends MainThreadSCMShape {
 	private _sourceControlDisposables: { [handle: number]: IDisposable; } = Object.create(null);
 	private _disposables: IDisposable[] = [];
 
+	get commit(): ISCMInput { return this.scmService.commit; }
+	get tag(): ISCMInput { return this.scmService.tag; }
+
 	constructor(
 		@IThreadService threadService: IThreadService,
 		@IInstantiationService private instantiationService: IInstantiationService,
@@ -221,7 +224,8 @@ export class MainThreadSCM extends MainThreadSCMShape {
 		this._proxy = threadService.get(ExtHostContext.ExtHostSCM);
 
 		this.scmService.onDidChangeProvider(this.onDidChangeProvider, this, this._disposables);
-		this.scmService.input.onDidChange(this._proxy.$onInputBoxValueChange, this._proxy, this._disposables);
+		this.scmService.commit.onDidChange(this._proxy.$onCommitInputBoxValueChange, this._proxy, this._disposables);
+		this.scmService.tag.onDidChange(this._proxy.$onTagInputBoxValueChange, this._proxy, this._disposables);
 	}
 
 	$registerSourceControl(handle: number, id: string, label: string): void {
@@ -304,8 +308,12 @@ export class MainThreadSCM extends MainThreadSCMShape {
 		provider.$unregisterGroup(handle);
 	}
 
-	$setInputBoxValue(value: string): void {
-		this.scmService.input.value = value;
+	$setCommitInputBoxValue(value: string): void {
+		this.scmService.commit.value = value;
+	}
+
+	$setTagInputBoxValue(value: string): void {
+		this.scmService.tag.value = value;
 	}
 
 	private onDidChangeProvider(provider: ISCMProvider): void {

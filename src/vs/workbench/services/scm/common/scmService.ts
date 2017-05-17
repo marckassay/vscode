@@ -56,10 +56,10 @@ export class SCMService implements ISCMService {
 	get onDidChangeProvider(): Event<ISCMProvider> { return this._onDidChangeProvider.event; }
 
 	@memoize
-	get input(): ISCMInput { return new SCMInput(); }
+	get commit(): ISCMInput { return new SCMInput(); }
 
 	@memoize
-	get tagInput(): ISCMInput { return new SCMInput(); }
+	get tag(): ISCMInput { return new SCMInput(); }
 
 	constructor(
 		@IContextKeyService contextKeyService: IContextKeyService,

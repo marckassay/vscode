@@ -210,7 +210,8 @@ export enum Operation {
 	Init = 1 << 12,
 	Show = 1 << 13,
 	Stage = 1 << 14,
-	GetCommitTemplate = 1 << 15
+	GetCommitTemplate = 1 << 15,
+	Tag = 1 << 16
 }
 
 // function getOperationName(operation: Operation): string {
@@ -405,6 +406,11 @@ export class Model implements Disposable {
 
 	async revertFiles(...resources: Resource[]): Promise<void> {
 		await this.run(Operation.RevertFiles, () => this.repository.revertFiles('HEAD', resources.map(r => r.resourceUri.fsPath)));
+	}
+
+	async tag(tagname: string, annotate: boolean = false, message?: string): Promise<void>
+	{
+		await this.run(Operation.Tag, () => this.repository.tag(tagname, annotate, message));
 	}
 
 	async commit(message: string, opts: CommitOptions = Object.create(null)): Promise<void> {

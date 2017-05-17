@@ -226,10 +226,10 @@ export class SCMViewlet extends Viewlet {
 	private activeProvider: ISCMProvider | undefined;
 	private cachedDimension: Dimension;
 	private scmEditorElement: HTMLElement;
-	private inputBoxContainer: HTMLElement;
-	private inputBox: InputBox;
+	private commitContainer: HTMLElement;
+	private commitInputBox: InputBox;
 	private tagContainer: HTMLElement;
-	private tagBox: InputBox;
+	private tagInputBox: InputBox;
 	private toggleTagButton: Button;
 	private listContainer: HTMLElement;
 	private list: List<ISCMResourceGroup | ISCMResource>;
@@ -267,7 +267,7 @@ export class SCMViewlet extends Viewlet {
 			const disposables = [activeProvider.onDidChange(this.update, this)];
 
 			if (activeProvider.onDidChangeCommitTemplate) {
-				disposables.push(activeProvider.onDidChangeCommitTemplate(this.updateInputBox, this));
+				disposables.push(activeProvider.onDidChangeCommitTemplate(this.updateInputBoxes, this));
 			}
 
 			this.providerChangeDisposable = combinedDisposable(disposables);
@@ -275,7 +275,7 @@ export class SCMViewlet extends Viewlet {
 			this.providerChangeDisposable = EmptyDisposable;
 		}
 
-		this.updateInputBox();
+		this.updateInputBoxes();
 		this.updateTitleArea();
 		this.update();
 	}
@@ -286,39 +286,39 @@ export class SCMViewlet extends Viewlet {
 
 		parent.div({ 'class': 'scm-editor' }, (builder) => {
 			this.scmEditorElement = builder.getHTMLElement();
-			this.inputBoxContainer = builder.div({ 'class': 'input-container' }).getHTMLElement();
+			this.commitContainer = builder.div({ 'class': 'commit-container' }).getHTMLElement();
 			this.tagContainer = builder.div({ 'class': 'tag-container' }).getHTMLElement();
 		});
 		this.listContainer = parent.div({ 'class': 'scm-status.show-file-icons' }).getHTMLElement();
 
-		this.inputBox = new InputBox(this.inputBoxContainer, this.contextViewService, {
+		this.commitInputBox = new InputBox(this.commitContainer, this.contextViewService, {
 			placeholder: localize('commitMessage', "Message (press {0} to commit)", platform.isMacintosh ? 'Cmd+Enter' : 'Ctrl+Enter'),
 			flexibleHeight: true
 		});
-		this.disposables.push(attachInputBoxStyler(this.inputBox, this.themeService));
-		this.disposables.push(this.inputBox);
+		this.disposables.push(attachInputBoxStyler(this.commitInputBox, this.themeService));
+		this.disposables.push(this.commitInputBox);
 
-		this.inputBox.value = this.scmService.input.value;
-		this.inputBox.onDidChange(value => this.scmService.input.value = value, null, this.disposables);
-		this.scmService.input.onDidChange(value => this.inputBox.value = value, null, this.disposables);
-		this.disposables.push(this.inputBox.onDidHeightChange(() => this.layout()));
+		this.commitInputBox.value = this.scmService.commit.value;
+		this.commitInputBox.onDidChange(value => this.scmService.commit.value = value, null, this.disposables);
+		this.scmService.commit.onDidChange(value => this.commitInputBox.value = value, null, this.disposables);
+		this.disposables.push(this.commitInputBox.onDidHeightChange(() => this.layout()));
 
-		chain(domEvent(this.inputBox.inputElement, 'keydown'))
+		chain(domEvent(this.commitInputBox.inputElement, 'keydown'))
 			.map(e => new StandardKeyboardEvent(e))
 			.filter(e => e.equals(KeyMod.CtrlCmd | KeyCode.Enter) || e.equals(KeyMod.CtrlCmd | KeyCode.KEY_S))
 			.on(this.onDidAcceptInput, this, this.disposables);
 
-		this.tagBox = new InputBox(this.tagContainer, this.contextViewService, {
+		this.tagInputBox = new InputBox(this.tagContainer, this.contextViewService, {
 			placeholder: localize('tagMessage', "Lorem Ipsum"),
 			flexibleHeight: true
 		});
-		this.disposables.push(attachInputBoxStyler(this.tagBox, this.themeService));
-		this.disposables.push(this.tagBox);
+		this.disposables.push(attachInputBoxStyler(this.tagInputBox, this.themeService));
+		this.disposables.push(this.tagInputBox);
 
-		this.tagBox.value = this.scmService.tagInput.value;
-		this.tagBox.onDidChange(value => this.scmService.tagInput.value = value, null, this.disposables);
-		this.scmService.tagInput.onDidChange(value => this.tagBox.value = value, null, this.disposables);
-		this.disposables.push(this.tagBox.onDidHeightChange(() => this.layout()));
+		this.tagInputBox.value = this.scmService.tag.value;
+		this.tagInputBox.onDidChange(value => this.scmService.tag.value = value, null, this.disposables);
+		this.scmService.tag.onDidChange(value => this.tagInputBox.value = value, null, this.disposables);
+		this.disposables.push(this.tagInputBox.onDidHeightChange(() => this.layout()));
 		/*
 		chain(domEvent(this.tagBox.inputElement, 'keydown'))
 			.map(e => new StandardKeyboardEvent(e))
@@ -408,7 +408,7 @@ export class SCMViewlet extends Viewlet {
 		this.list.splice(0, this.list.length, elements);
 	}
 
-	private updateInputBox(): void {
+	private updateInputBoxes(): void {
 		if (!this.activeProvider) {
 			return;
 		}
@@ -417,9 +417,9 @@ export class SCMViewlet extends Viewlet {
 			return;
 		}
 
-		this.inputBox.value = this.activeProvider.commitTemplate;
+		this.commitInputBox.value = this.activeProvider.commitTemplate;
 
-		this.tagBox.value = '';
+		this.tagInputBox.value = '';
 	}
 
 	layout(dimension: Dimension = this.cachedDimension): void {
@@ -428,16 +428,15 @@ export class SCMViewlet extends Viewlet {
 		}
 
 		this.cachedDimension = dimension;
-		this.inputBox.layout();
-		this.tagBox.layout();
+		this.commitInputBox.layout();
+		this.tagInputBox.layout();
 
-		const editorHeight = this.inputBox.height + this.tagBox.height;
+		const editorHeight = this.scmEditorElement.clientHeight;
 		const listHeight = dimension.height - (editorHeight + 12 /* margin */);
 		this.listContainer.style.height = `${listHeight}px`;
 		this.list.layout(listHeight);
 
-		// TODO: need to consider tagBoxContainer too...
-		toggleClass(this.inputBoxContainer, 'scroll', editorHeight >= 134);
+		toggleClass(this.scmEditorElement, 'scroll', editorHeight >= 134);
 	}
 
 	getOptimalWidth(): number {
@@ -446,7 +445,7 @@ export class SCMViewlet extends Viewlet {
 
 	focus(): void {
 		super.focus();
-		this.inputBox.focus();
+		this.commitInputBox.focus();
 	}
 
 	private open(e: ISCMResource): void {
