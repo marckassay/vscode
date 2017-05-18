@@ -10,6 +10,7 @@ import { localize } from 'vs/nls';
 import { TPromise } from 'vs/base/common/winjs.base';
 import { chain } from 'vs/base/common/event';
 import { onUnexpectedError } from 'vs/base/common/errors';
+import dom = require('vs/base/browser/dom');
 import * as platform from 'vs/base/common/platform';
 import { domEvent } from 'vs/base/browser/event';
 import { Button } from 'vs/base/browser/ui/button/button';
@@ -232,6 +233,7 @@ export class SCMViewlet extends Viewlet {
 	private commitInputBox: InputBox;
 	private tagContainer: HTMLElement;
 	private tagInputBox: InputBox;
+	private toggleContainer: HTMLElement;
 	private toggleTagButton: Button;
 	private listContainer: HTMLElement;
 	private list: List<ISCMResourceGroup | ISCMResource>;
@@ -291,6 +293,7 @@ export class SCMViewlet extends Viewlet {
 			this.scmEditorElement = builder.getHTMLElement();
 			this.commitContainer = builder.div({ 'class': 'commit-container' }).getHTMLElement();
 			this.tagContainer = builder.div({ 'class': 'tag-container' }).getHTMLElement();
+			this.toggleContainer = builder.div({ 'class': 'toggle-container' }).getHTMLElement();
 		});
 		this.listContainer = parent.div({ 'class': 'scm-status.show-file-icons' }).getHTMLElement();
 
@@ -323,7 +326,7 @@ export class SCMViewlet extends Viewlet {
 		this.scmService.tag.onDidChange(value => this.tagInputBox.value = value, null, this.disposables);
 		this.disposables.push(this.tagInputBox.onDidHeightChange(() => this.layout()));
 
-		this.createToggleTagButton(this.scmEditorElement);
+		this.createToggleTagButton(this.toggleContainer);
 
 		const delegate = new Delegate();
 
@@ -440,12 +443,12 @@ export class SCMViewlet extends Viewlet {
 		this.commitInputBox.layout();
 		this.tagInputBox.layout();
 
-		const editorHeight = this.scmEditorElement.clientHeight;
+		const editorHeight = dom.getTotalHeight(this.scmEditorElement);
 		const listHeight = dimension.height - (editorHeight + 12 /* margin */);
 		this.listContainer.style.height = `${listHeight}px`;
 		this.list.layout(listHeight);
 
-		toggleClass(this.scmEditorElement, 'scroll', editorHeight >= 134);
+		toggleClass(this.scmEditorElement, 'scroll', editorHeight >= 268);
 	}
 
 	getOptimalWidth(): number {

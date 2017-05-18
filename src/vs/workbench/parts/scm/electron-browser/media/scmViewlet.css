@@ -83,8 +83,9 @@
 
 .scm-viewlet > .scm-editor {
 	box-sizing: border-box;
-	padding: 5px 9px 5px 16px;
 	position: relative;
+    margin: 0px 9px 0 2px;
+    padding-top: 6px;
 }
 
 .scm-viewlet > .scm-editor > .monaco-inputbox {
@@ -92,11 +93,11 @@
 }
 
 .scm-viewlet > .scm-editor > .monaco-inputbox > .wrapper > .mirror {
-	max-height: 134px;
+	max-height: 268px;
 }
 
 .scm-viewlet > .scm-editor > .monaco-inputbox > .wrapper > textarea.input {
-	min-height: 26px;
+	min-height: 24px;
 }
 
 .scm-viewlet > .scm-editor.scroll > .monaco-inputbox > .wrapper > textarea.input {
@@ -105,8 +106,10 @@
 
 .scm-viewlet .scm-editor .toggle-tag-button {
 	position: absolute;
+
 	top: 0;
 	left: 0;
+
 	width: 16px;
 	height: 100%;
 
@@ -146,24 +149,14 @@
 	background-image: url('expando-collapsed-dark.svg');
 }
 
-
-
-
-
-
-.scm-viewlet .scm-editor .input-container,
+.scm-viewlet .scm-editor .commit-container,
 .scm-viewlet .scm-editor .tag-container {
 	margin-left: 17px;
 }
 
 .scm-viewlet .scm-editor .input-box,
 .scm-viewlet .scm-editor .input-box .monaco-inputbox {
-	height: 25px;
-}
-
-.scm-viewlet .scm-editor .monaco-findInput {
-	display: inline-block;
-	vertical-align: middle;
+	height: 24px;
 }
 
 .scm-viewlet .scm-editor .tag-container {
@@ -174,14 +167,4 @@
 
 .scm-viewlet .scm-editor .tag-container.disabled {
 	display: none;
-}
-
-.scm-viewlet .scm-editor .tag-container .monaco-action-bar {
-	margin-left: 3px;
-}
-
-.scm-viewlet .scm-editor .tag-container .monaco-action-bar .action-item .icon {
-	background-repeat: no-repeat;
-	width: 20px;
-	height: 25px;
 }
