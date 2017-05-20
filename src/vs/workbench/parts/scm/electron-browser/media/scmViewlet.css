@@ -81,49 +81,22 @@
 	background-repeat: no-repeat;
 }
 
-.scm-viewlet > .scm-editor {
-	box-sizing: border-box;
-	position: relative;
-    margin: 0px 9px 0 2px;
-    padding-top: 6px;
-}
-
-.scm-viewlet > .scm-editor > .monaco-inputbox {
+.scm-viewlet .scm-editor .monaco-inputbox {
 	width: 100%;
 }
-
-.scm-viewlet > .scm-editor > .monaco-inputbox > .wrapper > .mirror {
-	max-height: 268px;
+/*
+.scm-viewlet > .scm-editor > .commit-container .monaco-inputbox > .wrapper > .mirror {
+	max-height: 134px;
 }
 
-.scm-viewlet > .scm-editor > .monaco-inputbox > .wrapper > textarea.input {
-	min-height: 24px;
+.scm-viewlet > .scm-editor > .commit-container .monaco-inputbox > .wrapper > textarea.input {
+	min-height: 26px;
 }
 
 .scm-viewlet > .scm-editor.scroll > .monaco-inputbox > .wrapper > textarea.input {
 	overflow-y: scroll;
 }
-
-.scm-viewlet .scm-editor .toggle-tag-button {
-	position: absolute;
-
-	top: 0;
-	left: 0;
-
-	width: 16px;
-	height: 100%;
-
-	-webkit-box-sizing: border-box;
-	-o-box-sizing: border-box;
-	-moz-box-sizing: border-box;
-	-ms-box-sizing: border-box;
-	box-sizing: border-box;
-
-	background-position: center center;
-	background-repeat: no-repeat;
-	cursor: pointer;
-}
-
+*/
 .vs .scm-viewlet .scm-editor .toggle-tag-button:hover {
 	background-color: rgba(0, 0, 0, 0.1) !important;
 }
@@ -149,19 +122,47 @@
 	background-image: url('expando-collapsed-dark.svg');
 }
 
-.scm-viewlet .scm-editor .commit-container,
-.scm-viewlet .scm-editor .tag-container {
-	margin-left: 17px;
+.scm-viewlet > .scm-editor {
+	display: inline-flex;
+	width: 100%;
 }
 
-.scm-viewlet .scm-editor .input-box,
-.scm-viewlet .scm-editor .input-box .monaco-inputbox {
-	height: 24px;
+.scm-viewlet > .scm-editor > .toggle-container {
+	display: flex;
+	width: 16px;
+	height: inherit;
+}
+
+.scm-viewlet > .scm-editor > .toggle-container > .toggle-tag-button {
+	display: inherit;
+	width: inherit;
+	margin-left: 2px;
+
+	-webkit-box-sizing: border-box;
+	-o-box-sizing: border-box;
+	-moz-box-sizing: border-box;
+	-ms-box-sizing: border-box;
+	box-sizing: border-box;
+
+	background-position: center center;
+	background-repeat: no-repeat;
+	cursor: pointer;
+}
+
+.scm-viewlet .scm-editor .containers {
+	width: inherit;
+	margin-left: 2px;
+	margin-right: 10px;
+}
+
+.scm-viewlet .scm-editor .commit-container,
+.scm-viewlet .scm-editor .tag-container {
+	box-sizing: border-box;
+	min-height: 28px;
 }
 
 .scm-viewlet .scm-editor .tag-container {
 	margin-top: 6px;
-	position: relative;
 	display: inline-flex;
 }
 

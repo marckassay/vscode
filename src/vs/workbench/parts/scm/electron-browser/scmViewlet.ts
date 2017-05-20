@@ -291,9 +291,13 @@ export class SCMViewlet extends Viewlet {
 
 		parent.div({ 'class': 'scm-editor' }, (builder) => {
 			this.scmEditorElement = builder.getHTMLElement();
-			this.commitContainer = builder.div({ 'class': 'commit-container' }).getHTMLElement();
-			this.tagContainer = builder.div({ 'class': 'tag-container' }).getHTMLElement();
+
 			this.toggleContainer = builder.div({ 'class': 'toggle-container' }).getHTMLElement();
+
+			builder.div({ 'class': 'containers' }, (builder) => {
+				this.commitContainer = builder.div({ 'class': 'commit-container' }).getHTMLElement();
+				this.tagContainer = builder.div({ 'class': 'tag-container' }).getHTMLElement();
+			 }).getHTMLElement();
 		});
 		this.listContainer = parent.div({ 'class': 'scm-status.show-file-icons' }).getHTMLElement();
 
@@ -316,7 +320,6 @@ export class SCMViewlet extends Viewlet {
 
 		this.tagInputBox = new InputBox(this.tagContainer, this.contextViewService, {
 			placeholder: localize('tagMessage', "Lorem Ipsum"),
-			flexibleHeight: true
 		});
 		this.disposables.push(attachInputBoxStyler(this.tagInputBox, this.themeService));
 		this.disposables.push(this.tagInputBox);
@@ -448,7 +451,7 @@ export class SCMViewlet extends Viewlet {
 		this.listContainer.style.height = `${listHeight}px`;
 		this.list.layout(listHeight);
 
-		toggleClass(this.scmEditorElement, 'scroll', editorHeight >= 268);
+		toggleClass(this.scmEditorElement, 'scroll', editorHeight >= 162);
 	}
 
 	getOptimalWidth(): number {
