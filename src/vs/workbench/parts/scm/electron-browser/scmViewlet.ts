@@ -390,6 +390,8 @@ export class SCMViewlet extends Viewlet {
 		toggleClass(this.toggleTagButton.getElement(), 'collapse');
 		toggleClass(this.toggleTagButton.getElement(), 'expand');
 
+		this.layout();
+
 		this.storageService.store(SCMViewlet.SHOW_TAG_STORAGE_KEY, this.isTagShown(), StorageScope.WORKSPACE);
 	}
 
@@ -451,7 +453,8 @@ export class SCMViewlet extends Viewlet {
 		this.listContainer.style.height = `${listHeight}px`;
 		this.list.layout(listHeight);
 
-		toggleClass(this.scmEditorElement, 'scroll', editorHeight >= 162);
+		// if the commitInputBox expands its height too much, enable its scrollbar...
+		toggleClass(this.commitContainer, 'scroll', dom.getTotalHeight(this.scmEditorElement) >= 134);
 	}
 
 	getOptimalWidth(): number {
