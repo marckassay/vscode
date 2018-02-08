@@ -10,11 +10,12 @@ import * as objects from 'vs/base/common/objects';
 import types = require('vs/base/common/types');
 import URI from 'vs/base/common/uri';
 import { IDisposable, dispose, Disposable } from 'vs/base/common/lifecycle';
-import { IEditor, IEditorViewState, IModel, ScrollType } from 'vs/editor/common/editorCommon';
-import { IEditorInput, IEditorModel, IEditorOptions, ITextEditorOptions, IBaseResourceInput, Position, Verbosity, IEditor as IBaseEditor } from 'vs/platform/editor/common/editor';
+import { IEditor, IEditorViewState, ScrollType } from 'vs/editor/common/editorCommon';
+import { IEditorInput, IEditorModel, IEditorOptions, ITextEditorOptions, IBaseResourceInput, Position, Verbosity, IEditor as IBaseEditor, IRevertOptions } from 'vs/platform/editor/common/editor';
 import { IInstantiationService, IConstructorSignature0 } from 'vs/platform/instantiation/common/instantiation';
 import { RawContextKey } from 'vs/platform/contextkey/common/contextkey';
 import { Registry } from 'vs/platform/registry/common/platform';
+import { ITextModel } from 'vs/editor/common/model';
 
 export const TextCompareEditorVisible = new RawContextKey<boolean>('textCompareEditorVisible', false);
 
@@ -35,7 +36,10 @@ export const TEXT_DIFF_EDITOR_ID = 'workbench.editors.textDiffEditor';
 export const BINARY_DIFF_EDITOR_ID = 'workbench.editors.binaryResourceDiffEditor';
 
 export interface IFileInputFactory {
+
 	createFileInput(resource: URI, encoding: string, instantiationService: IInstantiationService): IFileEditorInput;
+
+	isFileInput(obj: any): obj is IFileEditorInput;
 }
 
 export interface IEditorInputFactoryRegistry {
@@ -200,8 +204,8 @@ export abstract class EditorInput implements IEditorInput {
 	/**
 	 * Subclasses should bring up a proper dialog for the user if the editor is dirty and return the result.
 	 */
-	public confirmSave(): ConfirmResult {
-		return ConfirmResult.DONT_SAVE;
+	public confirmSave(): TPromise<ConfirmResult> {
+		return TPromise.wrap(ConfirmResult.DONT_SAVE);
 	}
 
 	/**
@@ -214,7 +218,7 @@ export abstract class EditorInput implements IEditorInput {
 	/**
 	 * Reverts the editor if it is dirty. Subclasses return a promise with a boolean indicating the success of the operation.
 	 */
-	public revert(): TPromise<boolean> {
+	public revert(options?: IRevertOptions): TPromise<boolean> {
 		return TPromise.as(true);
 	}
 
@@ -275,7 +279,7 @@ export interface IEditorOpeningEvent {
 	prevent(callback: () => TPromise<IBaseEditor>): void;
 }
 
-export class EditorOpeningEvent {
+export class EditorOpeningEvent implements IEditorOpeningEvent {
 	private override: () => TPromise<IBaseEditor>;
 
 	constructor(private _input: IEditorInput, private _options: IEditorOptions, private _position: Position) {
@@ -372,7 +376,7 @@ export class SideBySideEditorInput extends EditorInput {
 		return this.master.isDirty();
 	}
 
-	public confirmSave(): ConfirmResult {
+	public confirmSave(): TPromise<ConfirmResult> {
 		return this.master.confirmSave();
 	}
 
@@ -459,7 +463,7 @@ export class SideBySideEditorInput extends EditorInput {
 }
 
 export interface ITextEditorModel extends IEditorModel {
-	textEditorModel: IModel;
+	textEditorModel: ITextModel;
 }
 
 /**
@@ -754,6 +758,7 @@ export interface IEditorStacksModel {
 
 	next(jumpGroups: boolean, cycleAtEnd?: boolean): IEditorIdentifier;
 	previous(jumpGroups: boolean, cycleAtStart?: boolean): IEditorIdentifier;
+	last(): IEditorIdentifier;
 
 	isOpen(resource: URI): boolean;
 
@@ -786,8 +791,14 @@ export interface IEditorIdentifier {
 	editor: IEditorInput;
 }
 
-export interface IEditorContext extends IEditorIdentifier {
-	event?: any;
+/**
+ * The editor commands context is used for editor commands (e.g. in the editor title)
+ * and we must ensure that the context is serializable because it potentially travels
+ * to the extension host!
+ */
+export interface IEditorCommandsContext {
+	groupId: GroupIdentifier;
+	editorIndex?: number;
 }
 
 export interface IEditorCloseEvent extends IEditorIdentifier {
@@ -807,23 +818,11 @@ export const EditorOpenPositioning = {
 export const OPEN_POSITIONING_CONFIG = 'workbench.editor.openPositioning';
 
 export interface IWorkbenchEditorConfiguration {
-	/* __GDPR__FRAGMENT__
-		"IWorkbenchEditorConfiguration" : {
-			"showTabs" : { "classification": "SystemMetaData", "purpose": "FeatureInsight" },
-			"tabCloseButton": { "classification": "SystemMetaData", "purpose": "FeatureInsight" },
-			"showIcons": { "classification": "SystemMetaData", "purpose": "FeatureInsight" },
-			"enablePreview": { "classification": "SystemMetaData", "purpose": "FeatureInsight" },
-			"enablePreviewFromQuickOpen": { "classification": "SystemMetaData", "purpose": "FeatureInsight" },
-			"closeOnFileDelete": { "classification": "SystemMetaData", "purpose": "FeatureInsight" },
-			"openPositioning": { "classification": "SystemMetaData", "purpose": "FeatureInsight" },
-			"revealIfOpen": { "classification": "SystemMetaData", "purpose": "FeatureInsight" },
-			"swipeToNavigate": { "classification": "SystemMetaData", "purpose": "FeatureInsight" }
-		}
-	*/
 	workbench: {
 		editor: {
 			showTabs: boolean;
 			tabCloseButton: 'left' | 'right' | 'off';
+			tabSizing: 'fit' | 'shrink';
 			showIcons: boolean;
 			enablePreview: boolean;
 			enablePreviewFromQuickOpen: boolean;
@@ -832,7 +831,8 @@ export interface IWorkbenchEditorConfiguration {
 			revealIfOpen: boolean;
 			swipeToNavigate: boolean,
 			labelFormat: 'default' | 'short' | 'medium' | 'long';
-		}
+		},
+		iconTheme: string;
 	};
 }
 

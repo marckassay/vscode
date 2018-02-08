@@ -12,13 +12,11 @@ import { Scope } from 'vs/workbench/common/memento';
 import { dispose, IDisposable } from 'vs/base/common/lifecycle';
 import { IAction, IActionRunner } from 'vs/base/common/actions';
 import { IActionItem } from 'vs/base/browser/ui/actionbar/actionbar';
-import { ITree } from 'vs/base/parts/tree/browser/tree';
 import { firstIndex } from 'vs/base/common/arrays';
-import { DelayedDragHandler } from 'vs/base/browser/dnd';
 import { IExtensionService } from 'vs/platform/extensions/common/extensions';
 import { IKeybindingService } from 'vs/platform/keybinding/common/keybinding';
 import { IContextMenuService } from 'vs/platform/contextview/browser/contextView';
-import { ViewsRegistry, ViewLocation, IViewDescriptor } from 'vs/workbench/browser/parts/views/viewsRegistry';
+import { ViewsRegistry, ViewLocation, IViewDescriptor, IViewsViewlet } from 'vs/workbench/common/views';
 import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
 import { IThemeService } from 'vs/platform/theme/common/themeService';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
@@ -28,6 +26,11 @@ import { IContextKeyService, IContextKeyChangeEvent } from 'vs/platform/contextk
 import { StandardMouseEvent } from 'vs/base/browser/mouseEvent';
 import { PanelViewlet, ViewletPanel } from 'vs/workbench/browser/parts/views/panelViewlet';
 import { IPanelOptions } from 'vs/base/browser/ui/splitview/panelview';
+import { WorkbenchTree, IListService } from 'vs/platform/list/browser/listService';
+import { IWorkbenchThemeService, IFileIconTheme } from 'vs/workbench/services/themes/common/workbenchThemeService';
+import { ITreeConfiguration, ITreeOptions } from 'vs/base/parts/tree/browser/tree';
+import Event, { Emitter } from 'vs/base/common/event';
+import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
 
 export interface IViewOptions extends IPanelOptions {
 	id: string;
@@ -35,21 +38,12 @@ export interface IViewOptions extends IPanelOptions {
 	actionRunner: IActionRunner;
 }
 
-export interface IViewConstructorSignature<T extends ViewsViewletPanel> {
-	new(options: IViewOptions, ...services: { _serviceBrand: any; }[]): T;
-}
-
 export abstract class ViewsViewletPanel extends ViewletPanel {
+
+	private _isVisible: boolean;
 
 	readonly id: string;
 	readonly name: string;
-	protected treeContainer: HTMLElement;
-
-	// TODO@sandeep why is tree here? isn't this coming only from TreeView
-	protected tree: ITree;
-	protected isDisposed: boolean;
-	private _isVisible: boolean;
-	private dragHandler: DelayedDragHandler;
 
 	constructor(
 		options: IViewOptions,
@@ -63,59 +57,16 @@ export abstract class ViewsViewletPanel extends ViewletPanel {
 		this._expanded = options.expanded;
 	}
 
-	setExpanded(expanded: boolean): void {
-		this.updateTreeVisibility(this.tree, expanded);
-		super.setExpanded(expanded);
-	}
-
-	protected renderHeader(container: HTMLElement): void {
-		super.renderHeader(container);
-
-		// Expand on drag over
-		this.dragHandler = new DelayedDragHandler(container, () => this.setExpanded(true));
-	}
-
-	protected renderViewTree(container: HTMLElement): HTMLElement {
-		const treeContainer = document.createElement('div');
-		container.appendChild(treeContainer);
-		return treeContainer;
-	}
-
-	getViewer(): ITree {
-		return this.tree;
-	}
-
-	isVisible(): boolean {
-		return this._isVisible;
-	}
-
 	setVisible(visible: boolean): TPromise<void> {
 		if (this._isVisible !== visible) {
 			this._isVisible = visible;
-			this.updateTreeVisibility(this.tree, visible && this.isExpanded());
 		}
 
 		return TPromise.wrap(null);
 	}
 
-	focus(): void {
-		super.focus();
-		this.focusTree();
-	}
-
-	protected reveal(element: any, relativeTop?: number): TPromise<void> {
-		if (!this.tree) {
-			return TPromise.as(null); // return early if viewlet has not yet been created
-		}
-
-		return this.tree.reveal(element, relativeTop);
-	}
-
-	layoutBody(size: number): void {
-		if (this.tree) {
-			this.treeContainer.style.height = size + 'px';
-			this.tree.layout(size);
-		}
+	isVisible(): boolean {
+		return this._isVisible;
 	}
 
 	getActions(): IAction[] {
@@ -146,22 +97,39 @@ export abstract class ViewsViewletPanel extends ViewletPanel {
 		// Subclass to implement
 	}
 
-	dispose(): void {
-		this.isDisposed = true;
-		this.treeContainer = null;
+}
 
-		if (this.tree) {
-			this.tree.dispose();
+export abstract class TreeViewsViewletPanel extends ViewsViewletPanel {
+
+	protected tree: WorkbenchTree;
+
+	setExpanded(expanded: boolean): void {
+		if (this.isExpanded() !== expanded) {
+			this.updateTreeVisibility(this.tree, expanded);
+			super.setExpanded(expanded);
 		}
-
-		if (this.dragHandler) {
-			this.dragHandler.dispose();
-		}
-
-		super.dispose();
 	}
 
-	private updateTreeVisibility(tree: ITree, isVisible: boolean): void {
+	setVisible(visible: boolean): TPromise<void> {
+		if (this.isVisible() !== visible) {
+			return super.setVisible(visible)
+				.then(() => this.updateTreeVisibility(this.tree, visible && this.isExpanded()));
+		}
+		return TPromise.wrap(null);
+	}
+
+	focus(): void {
+		super.focus();
+		this.focusTree();
+	}
+
+	layoutBody(size: number): void {
+		if (this.tree) {
+			this.tree.layout(size);
+		}
+	}
+
+	protected updateTreeVisibility(tree: WorkbenchTree, isVisible: boolean): void {
 		if (!tree) {
 			return;
 		}
@@ -185,13 +153,20 @@ export abstract class ViewsViewletPanel extends ViewletPanel {
 		}
 
 		// Make sure the current selected element is revealed
-		const selection = this.tree.getSelection();
-		if (selection.length > 0) {
-			this.reveal(selection[0], 0.5).done(null, errors.onUnexpectedError);
+		const selectedElement = this.tree.getSelection()[0];
+		if (selectedElement) {
+			this.tree.reveal(selectedElement, 0.5).done(null, errors.onUnexpectedError);
 		}
 
 		// Pass Focus to Viewer
 		this.tree.DOMFocus();
+	}
+
+	dispose(): void {
+		if (this.tree) {
+			this.tree.dispose();
+		}
+		super.dispose();
 	}
 }
 
@@ -206,15 +181,19 @@ export interface IViewState {
 	order: number;
 }
 
-export class ViewsViewlet extends PanelViewlet {
+export class ViewsViewlet extends PanelViewlet implements IViewsViewlet {
 
 	private viewHeaderContextMenuListeners: IDisposable[] = [];
 	private viewletSettings: object;
 	private readonly viewsContextKeys: Set<string> = new Set<string>();
 	private viewsViewletPanels: ViewsViewletPanel[] = [];
 	private didLayout = false;
+	private dimension: Dimension;
 	protected viewsStates: Map<string, IViewState> = new Map<string, IViewState>();
 	private areExtensionsReady: boolean = false;
+
+	private _onDidChangeViewVisibilityState: Emitter<string> = new Emitter<string>();
+	readonly onDidChangeViewVisibilityState: Event<string> = this._onDidChangeViewVisibilityState.event;
 
 	constructor(
 		id: string,
@@ -236,13 +215,13 @@ export class ViewsViewlet extends PanelViewlet {
 	async create(parent: Builder): TPromise<void> {
 		await super.create(parent);
 
-		this._register(this.onDidSashChange(() => this.updateAllViewsSizes()));
+		this._register(this.onDidSashChange(() => this.snapshotViewsStates()));
 		this._register(ViewsRegistry.onViewsRegistered(this.onViewsRegistered, this));
 		this._register(ViewsRegistry.onViewsDeregistered(this.onViewsDeregistered, this));
 		this._register(this.contextKeyService.onDidChangeContext(this.onContextChanged, this));
 
 		// Update headers after and title contributed views after available, since we read from cache in the beginning to know if the viewlet has single view or not. Ref #29609
-		this.extensionService.onReady().then(() => {
+		this.extensionService.whenInstalledExtensionsRegistered().then(() => {
 			this.areExtensionsReady = true;
 			this.updateHeaders();
 		});
@@ -270,15 +249,27 @@ export class ViewsViewlet extends PanelViewlet {
 			.then(() => void 0);
 	}
 
+	openView(id: string): void {
+		this.focus();
+		const view = this.getView(id);
+		if (view) {
+			view.setExpanded(true);
+			view.focus();
+		} else {
+			this.toggleViewVisibility(id);
+		}
+	}
+
 	layout(dimension: Dimension): void {
 		super.layout(dimension);
-
-		if (!this.didLayout) {
+		this.dimension = dimension;
+		if (this.didLayout) {
+			this.snapshotViewsStates();
+		} else {
 			this.didLayout = true;
-			this._resizePanels();
+			this.resizePanels();
 		}
 
-		this.updateAllViewsSizes();
 	}
 
 	getOptimalWidth(): number {
@@ -292,26 +283,25 @@ export class ViewsViewlet extends PanelViewlet {
 		super.shutdown();
 	}
 
-	toggleViewVisibility(id: string, visible?: boolean): void {
-		const view = this.getView(id);
+	toggleViewVisibility(id: string): void {
 		let viewState = this.viewsStates.get(id);
-
-		if ((visible === true && view) || (visible === false && !view)) {
+		if (!viewState) {
 			return;
 		}
 
-		if (view) {
-			viewState = viewState || this.createViewState(view);
-			viewState.isHidden = true;
-		} else {
-			viewState = viewState || { collapsed: true, size: void 0, isHidden: false, order: void 0 };
-			viewState.isHidden = false;
-		}
-		this.viewsStates.set(id, viewState);
-		this.updateViews();
+		viewState.isHidden = !!this.getView(id);
+		this.updateViews()
+			.then(() => {
+				this._onDidChangeViewVisibilityState.fire(id);
+				if (!viewState.isHidden) {
+					this.openView(id);
+				} else {
+					this.focus();
+				}
+			});
 	}
 
-	private onViewsRegistered(views: IViewDescriptor[]): TPromise<ViewsViewletPanel[]> {
+	private onViewsRegistered(views: IViewDescriptor[]): void {
 		this.viewsContextKeys.clear();
 		for (const viewDescriptor of this.getViewDescriptorsFromRegistry()) {
 			if (viewDescriptor.when) {
@@ -321,11 +311,11 @@ export class ViewsViewlet extends PanelViewlet {
 			}
 		}
 
-		return this.updateViews();
+		this.updateViews();
 	}
 
-	private onViewsDeregistered(views: IViewDescriptor[]): TPromise<ViewsViewletPanel[]> {
-		return this.updateViews(views);
+	private onViewsDeregistered(views: IViewDescriptor[]): void {
+		this.updateViews(views);
 	}
 
 	private onContextChanged(event: IContextKeyChangeEvent): void {
@@ -361,21 +351,12 @@ export class ViewsViewlet extends PanelViewlet {
 		const toCreate: ViewsViewletPanel[] = [];
 
 		if (toAdd.length || toRemove.length) {
-			const panels = [...this.viewsViewletPanels];
 
-			for (const view of panels) {
-				let viewState = this.viewsStates.get(view.id);
-				if (!viewState || typeof viewState.size === 'undefined' || !view.isExpanded() !== viewState.collapsed) {
-					viewState = this.updateViewStateSize(view);
-					this.viewsStates.set(view.id, viewState);
-				}
-			}
+			this.snapshotViewsStates();
 
 			if (toRemove.length) {
 				for (const viewDescriptor of toRemove) {
 					let view = this.getView(viewDescriptor.id);
-					const viewState = this.updateViewStateSize(view);
-					this.viewsStates.set(view.id, viewState);
 					this.removePanel(view);
 					this.viewsViewletPanels.splice(this.viewsViewletPanels.indexOf(view), 1);
 				}
@@ -394,39 +375,58 @@ export class ViewsViewlet extends PanelViewlet {
 					});
 				toCreate.push(view);
 
-				const size = (viewState && viewState.size) || viewDescriptor.size || 200;
+				const size = (viewState && viewState.size) || 200;
 				this.addPanel(view, size, index);
 				this.viewsViewletPanels.splice(index, 0, view);
-
-				this.viewsStates.set(view.id, this.updateViewStateSize(view));
 			}
 
 			return TPromise.join(toCreate.map(view => view.create()))
 				.then(() => this.onViewsUpdated())
-				.then(() => this._resizePanels())
-				.then(() => toCreate);
+				.then(() => {
+					this.resizePanels(toCreate);
+					return toCreate;
+				});
 		}
 
 		return TPromise.as([]);
 	}
 
-	private updateAllViewsSizes(): void {
-		for (const view of this.viewsViewletPanels) {
-			let viewState = this.updateViewStateSize(view);
-			this.viewsStates.set(view.id, viewState);
-		}
-	}
-
-	private _resizePanels(): void {
+	private resizePanels(panels: ViewsViewletPanel[] = this.viewsViewletPanels): void {
 		if (!this.didLayout) {
+			// Do not do anything if layout has not happened yet
 			return;
 		}
 
-		for (const panel of this.viewsViewletPanels) {
+		let initialSizes;
+		for (const panel of panels) {
 			const viewState = this.viewsStates.get(panel.id);
-			const size = (viewState && viewState.size) || 200;
-			this.resizePanel(panel, size);
+			if (viewState && viewState.size) {
+				this.resizePanel(panel, viewState.size);
+			} else {
+				initialSizes = initialSizes ? initialSizes : this.computeInitialSizes();
+				this.resizePanel(panel, initialSizes[panel.id] || 200);
+			}
 		}
+
+		this.snapshotViewsStates();
+	}
+
+	private computeInitialSizes(): { [id: string]: number } {
+		let sizes = {};
+		if (this.dimension) {
+			let totalWeight = 0;
+			const allViewDescriptors = this.getViewDescriptorsFromRegistry();
+			const viewDescriptors: IViewDescriptor[] = [];
+			for (const panel of this.viewsViewletPanels) {
+				const viewDescriptor = allViewDescriptors.filter(viewDescriptor => viewDescriptor.id === panel.id)[0];
+				totalWeight = totalWeight + (viewDescriptor.weight || 20);
+				viewDescriptors.push(viewDescriptor);
+			}
+			for (const viewDescriptor of viewDescriptors) {
+				sizes[viewDescriptor.id] = this.dimension.height * (viewDescriptor.weight || 20) / totalWeight;
+			}
+		}
+		return sizes;
 	}
 
 	movePanel(from: ViewletPanel, to: ViewletPanel): void {
@@ -455,10 +455,6 @@ export class ViewsViewlet extends PanelViewlet {
 
 			view.order = order;
 		}
-	}
-
-	protected getDefaultViewSize(): number | undefined {
-		return undefined;
 	}
 
 	private isCurrentlyVisible(viewDescriptor: IViewDescriptor): boolean {
@@ -509,7 +505,7 @@ export class ViewsViewlet extends PanelViewlet {
 			getAnchor: () => anchor,
 			getActions: () => TPromise.as([<IAction>{
 				id: `${view.id}.removeView`,
-				label: nls.localize('hideView', "Hide from Side Bar"),
+				label: nls.localize('hideView', "Hide"),
 				enabled: true,
 				run: () => this.toggleViewVisibility(view.id)
 			}]),
@@ -526,16 +522,22 @@ export class ViewsViewlet extends PanelViewlet {
 		if (this.length > 1) {
 			return false;
 		}
-		// Check in cache so that view do not jump. See #29609
-		if (ViewLocation.getContributedViewLocation(this.location.id) && !this.areExtensionsReady) {
+
+		if (ViewLocation.getContributedViewLocation(this.location.id)) {
 			let visibleViewsCount = 0;
-			this.viewsStates.forEach((viewState, id) => {
-				if (!viewState.isHidden) {
-					visibleViewsCount++;
-				}
-			});
+			if (this.areExtensionsReady) {
+				visibleViewsCount = this.getViewDescriptorsFromRegistry().reduce((visibleViewsCount, v) => visibleViewsCount + (this.canBeVisible(v) ? 1 : 0), 0);
+			} else {
+				// Check in cache so that view do not jump. See #29609
+				this.viewsStates.forEach((viewState, id) => {
+					if (!viewState.isHidden) {
+						visibleViewsCount++;
+					}
+				});
+			}
 			return visibleViewsCount === 1;
 		}
+
 		return super.isSingleView();
 	}
 
@@ -570,28 +572,41 @@ export class ViewsViewlet extends PanelViewlet {
 		return this.viewsViewletPanels.filter(view => view.id === id)[0];
 	}
 
-	private updateViewStateSize(view: ViewsViewletPanel): IViewState {
-		const currentState = this.viewsStates.get(view.id);
-		const newViewState = this.createViewState(view);
-		return currentState ? { ...currentState, collapsed: newViewState.collapsed, size: newViewState.size } : newViewState;
-	}
+	private snapshotViewsStates(): void {
+		for (const view of this.viewsViewletPanels) {
+			const currentState = this.viewsStates.get(view.id);
+			if (currentState && !this.didLayout) {
+				// Do not update to new state if the layout has not happened yet
+				return;
+			}
 
-	protected createViewState(view: ViewsViewletPanel): IViewState {
-		return {
-			collapsed: !view.isExpanded(),
-			size: this.getPanelSize(view),
-			isHidden: false,
-			order: this.viewsViewletPanels.indexOf(view)
-		};
+			const collapsed = !view.isExpanded();
+			const order = this.viewsViewletPanels.indexOf(view);
+			const panelSize = this.getPanelSize(view);
+			if (currentState) {
+				currentState.collapsed = collapsed;
+				currentState.size = collapsed ? currentState.size : panelSize;
+				currentState.order = order;
+			} else {
+				this.viewsStates.set(view.id, {
+					collapsed,
+					size: this.didLayout ? panelSize : void 0,
+					isHidden: false,
+					order,
+				});
+			}
+		}
 	}
 }
 
 export class PersistentViewsViewlet extends ViewsViewlet {
 
+	private readonly hiddenViewsStorageId: string;
+
 	constructor(
 		id: string,
 		location: ViewLocation,
-		private viewletStateStorageId: string,
+		private readonly viewletStateStorageId: string,
 		showHeaderInTitleWhenSingleView: boolean,
 		@ITelemetryService telemetryService: ITelemetryService,
 		@IStorageService storageService: IStorageService,
@@ -603,6 +618,8 @@ export class PersistentViewsViewlet extends ViewsViewlet {
 		@IExtensionService extensionService: IExtensionService
 	) {
 		super(id, location, showHeaderInTitleWhenSingleView, telemetryService, storageService, instantiationService, themeService, contextKeyService, contextMenuService, extensionService);
+		this.hiddenViewsStorageId = `${this.viewletStateStorageId}.hidden`;
+		this._register(this.onDidChangeViewVisibilityState(id => this.onViewVisibilityChanged(id)));
 	}
 
 	create(parent: Builder): TPromise<void> {
@@ -622,7 +639,12 @@ export class PersistentViewsViewlet extends ViewsViewlet {
 			const view = this.getView(id);
 
 			if (view) {
-				viewsStates[id] = this.createViewState(view);
+				viewsStates[id] = {
+					collapsed: !view.isExpanded(),
+					size: this.getPanelSize(view),
+					isHidden: false,
+					order: viewState.order
+				};
 			} else {
 				const viewDescriptor = registeredViewDescriptors.filter(v => v.id === id)[0];
 				if (viewDescriptor) {
@@ -636,6 +658,53 @@ export class PersistentViewsViewlet extends ViewsViewlet {
 
 	protected loadViewsStates(): void {
 		const viewsStates = JSON.parse(this.storageService.get(this.viewletStateStorageId, this.contextService.getWorkbenchState() !== WorkbenchState.EMPTY ? StorageScope.WORKSPACE : StorageScope.GLOBAL, '{}'));
-		Object.keys(viewsStates).forEach(id => this.viewsStates.set(id, <IViewState>viewsStates[id]));
+		const hiddenViews = this.loadHiddenViews();
+		Object.keys(viewsStates).forEach(id => this.viewsStates.set(id, <IViewState>{ ...viewsStates[id], ...{ isHidden: hiddenViews.indexOf(id) !== -1 } }));
+	}
+
+	private onViewVisibilityChanged(id: string) {
+		const hiddenViews = this.loadHiddenViews();
+		const index = hiddenViews.indexOf(id);
+		if (this.getView(id) && index !== -1) {
+			hiddenViews.splice(index, 1);
+		} else if (index === -1) {
+			hiddenViews.push(id);
+		}
+		this.storeHiddenViews(hiddenViews);
+	}
+
+	private storeHiddenViews(hiddenViews: string[]): void {
+		this.storageService.store(this.hiddenViewsStorageId, JSON.stringify(hiddenViews), StorageScope.GLOBAL);
+	}
+
+	private loadHiddenViews(): string[] {
+		return JSON.parse(this.storageService.get(this.hiddenViewsStorageId, StorageScope.GLOBAL, '[]'));
+	}
+}
+
+export class FileIconThemableWorkbenchTree extends WorkbenchTree {
+
+	constructor(
+		container: HTMLElement,
+		configuration: ITreeConfiguration,
+		options: ITreeOptions,
+		@IContextKeyService contextKeyService: IContextKeyService,
+		@IListService listService: IListService,
+		@IThemeService themeService: IWorkbenchThemeService,
+		@IConfigurationService configurationService: IConfigurationService,
+		@IInstantiationService instantiationService: IInstantiationService
+	) {
+		super(container, configuration, { ...options, ...{ showTwistie: false, twistiePixels: 12 } }, contextKeyService, listService, themeService, instantiationService, configurationService);
+
+		DOM.addClass(container, 'file-icon-themable-tree');
+		DOM.addClass(container, 'show-file-icons');
+
+		const onFileIconThemeChange = (fileIconTheme: IFileIconTheme) => {
+			DOM.toggleClass(container, 'align-icons-and-twisties', fileIconTheme.hasFileIcons && !fileIconTheme.hasFolderIcons);
+			DOM.toggleClass(container, 'hide-arrows', fileIconTheme.hidesExplorerArrows === true);
+		};
+
+		this.disposables.push(themeService.onDidFileIconThemeChange(onFileIconThemeChange));
+		onFileIconThemeChange(themeService.getFileIconTheme());
 	}
 }

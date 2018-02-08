@@ -2,16 +2,14 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-
 'use strict';
 
+import * as nls from 'vscode-nls';
+const localize = nls.loadMessageBundle();
 import * as vscode from 'vscode';
-import { getLocation, visit, parse } from 'jsonc-parser';
+import { getLocation, visit, parse, ParseError, ParseErrorCode } from 'jsonc-parser';
 import * as path from 'path';
 import { SettingsDocument } from './settingsDocumentHelper';
-import * as nls from 'vscode-nls';
-
-const localize = nls.loadMessageBundle();
 
 const decoration = vscode.window.createTextEditorDecorationType({
 	color: '#9e9e9e'
@@ -41,6 +39,47 @@ export function activate(context: vscode.ExtensionContext): void {
 		}
 	}, null, context.subscriptions));
 	updateLaunchJsonDecorations(vscode.window.activeTextEditor);
+
+	context.subscriptions.push(vscode.workspace.onWillSaveTextDocument(e => {
+		if (!e.document.fileName.endsWith('/settings.json')) {
+			return;
+		}
+
+		autoFixSettingsJSON(e);
+	}));
+}
+
+function autoFixSettingsJSON(willSaveEvent: vscode.TextDocumentWillSaveEvent): void {
+	const document = willSaveEvent.document;
+	const text = document.getText();
+	const edit = new vscode.WorkspaceEdit();
+
+	let lastEndOfSomething = -1;
+	visit(text, {
+		onArrayEnd(offset: number, length: number): void {
+			lastEndOfSomething = offset + length;
+		},
+
+		onLiteralValue(value: any, offset: number, length: number): void {
+			lastEndOfSomething = offset + length;
+		},
+
+		onObjectEnd(offset: number, length: number): void {
+			lastEndOfSomething = offset + length;
+		},
+
+		onError(error: ParseErrorCode, offset: number, length: number): void {
+			if (error === ParseErrorCode.CommaExpected && lastEndOfSomething > -1) {
+				const errorPosition = document.positionAt(offset);
+
+				const fixPosition = document.positionAt(lastEndOfSomething);
+				edit.insert(document.uri, fixPosition, ',');
+			}
+		}
+	});
+
+	willSaveEvent.waitUntil(
+		vscode.workspace.applyEdit(edit));
 }
 
 function registerKeybindingsCompletions(): vscode.Disposable {
@@ -60,12 +99,36 @@ function registerKeybindingsCompletions(): vscode.Disposable {
 }
 
 function registerSettingsCompletions(): vscode.Disposable {
-	return vscode.languages.registerCompletionItemProvider({ language: 'json', pattern: '**/settings.json' }, {
+	return vscode.languages.registerCompletionItemProvider({ language: 'jsonc', pattern: '**/settings.json' }, {
 		provideCompletionItems(document, position, token) {
 			return new SettingsDocument(document).provideCompletionItems(position, token);
 		}
 	});
 }
+
+function provideContributedLocalesProposals(range: vscode.Range): vscode.ProviderResult<vscode.CompletionItem[] | vscode.CompletionList> {
+	const contributedLocales: string[] = [];
+	for (const extension of vscode.extensions.all) {
+		if (extension.packageJSON && extension.packageJSON['contributes'] && extension.packageJSON['contributes']['localizations'] && extension.packageJSON['contributes']['localizations'].length) {
+			const localizations: { languageId: string }[] = extension.packageJSON['contributes']['localizations'];
+			for (const localization of localizations) {
+				if (contributedLocales.indexOf(localization.languageId) === -1) {
+					contributedLocales.push(localization.languageId);
+				}
+			}
+		}
+	}
+	return contributedLocales.map(locale => {
+		const text = `"${locale}"`;
+		const item = new vscode.CompletionItem(text);
+		item.kind = vscode.CompletionItemKind.Value;
+		item.insertText = text;
+		item.range = range;
+		item.filterText = text;
+		return item;
+	});
+}
+
 
 interface IExtensionsContent {
 	recommendations: string[];
@@ -173,7 +236,7 @@ function updateLaunchJsonDecorations(editor: vscode.TextEditor | undefined): voi
 	editor.setDecorations(decoration, ranges);
 }
 
-vscode.languages.registerDocumentSymbolProvider({ pattern: '**/launch.json', language: 'json' }, {
+vscode.languages.registerDocumentSymbolProvider({ pattern: '**/launch.json', language: 'jsonc' }, {
 	provideDocumentSymbols(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.ProviderResult<vscode.SymbolInformation[]> {
 		const result: vscode.SymbolInformation[] = [];
 		let name: string = '';

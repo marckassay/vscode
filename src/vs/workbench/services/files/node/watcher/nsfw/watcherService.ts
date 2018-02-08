@@ -15,9 +15,10 @@ import { FileChangesEvent, IFilesConfiguration } from 'vs/platform/files/common/
 import { IWorkspaceContextService } from 'vs/platform/workspace/common/workspace';
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
 import { IDisposable, dispose } from 'vs/base/common/lifecycle';
+import { Schemas } from 'vs/base/common/network';
 
 export class FileWatcher {
-	private static MAX_RESTARTS = 5;
+	private static readonly MAX_RESTARTS = 5;
 
 	private service: WatcherChannelClient;
 	private isDisposed: boolean;
@@ -97,7 +98,10 @@ export class FileWatcher {
 			return;
 		}
 
-		this.service.setRoots(this.contextService.getWorkspace().folders.map(folder => {
+		this.service.setRoots(this.contextService.getWorkspace().folders.filter(folder => {
+			// Only workspace folders on disk
+			return folder.uri.scheme === Schemas.file;
+		}).map(folder => {
 			// Fetch the root's watcherExclude setting and return it
 			const configuration = this.configurationService.getValue<IFilesConfiguration>({
 				resource: folder.uri

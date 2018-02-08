@@ -12,7 +12,7 @@ import * as TypeConverters from './extHostTypeConverters';
 import { TextEditorDecorationType, ExtHostTextEditor } from './extHostTextEditor';
 import { ExtHostDocumentsAndEditors } from './extHostDocumentsAndEditors';
 import { Position as EditorPosition } from 'vs/platform/editor/common/editor';
-import { MainContext, MainThreadEditorsShape, ExtHostEditorsShape, ITextDocumentShowOptions, ITextEditorPositionData, IResolvedTextEditorConfiguration, ISelectionChangeEvent, IMainContext, IWorkspaceResourceEdit } from './extHost.protocol';
+import { MainContext, MainThreadEditorsShape, ExtHostEditorsShape, ITextDocumentShowOptions, ITextEditorPositionData, IResolvedTextEditorConfiguration, ISelectionChangeEvent, IMainContext, WorkspaceEditDto } from './extHost.protocol';
 import * as vscode from 'vscode';
 
 export class ExtHostEditors implements ExtHostEditorsShape {
@@ -20,13 +20,13 @@ export class ExtHostEditors implements ExtHostEditorsShape {
 	private readonly _onDidChangeTextEditorSelection = new Emitter<vscode.TextEditorSelectionChangeEvent>();
 	private readonly _onDidChangeTextEditorOptions = new Emitter<vscode.TextEditorOptionsChangeEvent>();
 	private readonly _onDidChangeTextEditorViewColumn = new Emitter<vscode.TextEditorViewColumnChangeEvent>();
-	private readonly _onDidChangeActiveTextEditor = new Emitter<vscode.TextEditor>();
+	private readonly _onDidChangeActiveTextEditor = new Emitter<vscode.TextEditor | undefined>();
 	private readonly _onDidChangeVisibleTextEditors = new Emitter<vscode.TextEditor[]>();
 
 	readonly onDidChangeTextEditorSelection: Event<vscode.TextEditorSelectionChangeEvent> = this._onDidChangeTextEditorSelection.event;
 	readonly onDidChangeTextEditorOptions: Event<vscode.TextEditorOptionsChangeEvent> = this._onDidChangeTextEditorOptions.event;
 	readonly onDidChangeTextEditorViewColumn: Event<vscode.TextEditorViewColumnChangeEvent> = this._onDidChangeTextEditorViewColumn.event;
-	readonly onDidChangeActiveTextEditor: Event<vscode.TextEditor> = this._onDidChangeActiveTextEditor.event;
+	readonly onDidChangeActiveTextEditor: Event<vscode.TextEditor | undefined> = this._onDidChangeActiveTextEditor.event;
 	readonly onDidChangeVisibleTextEditors: Event<vscode.TextEditor[]> = this._onDidChangeVisibleTextEditors.event;
 
 
@@ -37,7 +37,7 @@ export class ExtHostEditors implements ExtHostEditorsShape {
 		mainContext: IMainContext,
 		extHostDocumentsAndEditors: ExtHostDocumentsAndEditors,
 	) {
-		this._proxy = mainContext.get(MainContext.MainThreadEditors);
+		this._proxy = mainContext.getProxy(MainContext.MainThreadEditors);
 		this._extHostDocumentsAndEditors = extHostDocumentsAndEditors;
 
 		this._extHostDocumentsAndEditors.onDidChangeVisibleTextEditors(e => this._onDidChangeVisibleTextEditors.fire(e));
@@ -92,36 +92,23 @@ export class ExtHostEditors implements ExtHostEditorsShape {
 
 	applyWorkspaceEdit(edit: vscode.WorkspaceEdit): TPromise<boolean> {
 
-		let workspaceResourceEdits: IWorkspaceResourceEdit[] = [];
+		const dto: WorkspaceEditDto = { edits: [] };
 
-		let entries = edit.entries();
-		for (let entry of entries) {
-			let [uri, edits] = entry;
-
-			let doc = this._extHostDocumentsAndEditors.getDocument(uri.toString());
-			let docVersion: number = undefined;
-			if (doc) {
-				docVersion = doc.version;
-			}
-
-			let workspaceResourceEdit: IWorkspaceResourceEdit = {
-				resource: uri,
-				modelVersionId: docVersion,
-				edits: []
-			};
-
-			for (let edit of edits) {
-				workspaceResourceEdit.edits.push({
-					newText: edit.newText,
-					newEol: TypeConverters.EndOfLine.from(edit.newEol),
-					range: edit.range && TypeConverters.fromRange(edit.range)
+		for (let entry of edit.entries()) {
+			let [uri, uriOrEdits] = entry;
+			if (Array.isArray(uriOrEdits)) {
+				let doc = this._extHostDocumentsAndEditors.getDocument(uri.toString());
+				dto.edits.push({
+					resource: uri,
+					modelVersionId: doc && doc.version,
+					edits: uriOrEdits.map(TypeConverters.TextEdit.from)
 				});
+				// } else {
+				// 	dto.edits.push({ oldUri: uri, newUri: uriOrEdits });
 			}
-
-			workspaceResourceEdits.push(workspaceResourceEdit);
 		}
 
-		return this._proxy.$tryApplyWorkspaceEdit(workspaceResourceEdits);
+		return this._proxy.$tryApplyWorkspaceEdit(dto);
 	}
 
 	// --- called from main thread

@@ -5,7 +5,7 @@
 'use strict';
 
 import { IModelService } from 'vs/editor/common/services/modelService';
-import { IModel } from 'vs/editor/common/editorCommon';
+import { ITextModel } from 'vs/editor/common/model';
 import { IDisposable, dispose } from 'vs/base/common/lifecycle';
 import { ICodeEditorService } from 'vs/editor/browser/services/codeEditorService';
 import Event, { Emitter } from 'vs/base/common/event';
@@ -22,17 +22,10 @@ import { IFileService } from 'vs/platform/files/common/files';
 import { ITextModelService } from 'vs/editor/common/services/resolverService';
 import { IUntitledEditorService } from 'vs/workbench/services/untitled/common/untitledEditorService';
 import { IEditorGroupService } from 'vs/workbench/services/group/common/groupService';
-import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
 import { isCodeEditor, isDiffEditor, ICodeEditor } from 'vs/editor/browser/editorBrowser';
+import URI from 'vs/base/common/uri';
 
 namespace mapset {
-
-	export function newSet<E>(from: Set<E>): Set<E> {
-		return new (<any>Set)(from);
-		// let ret = new Set<E>();
-		// from.forEach(ret.add, ret);
-		// return ret;
-	}
 
 	export function setValues<T>(set: Set<T>): T[] {
 		// return Array.from(set);
@@ -100,8 +93,8 @@ class DocumentAndEditorStateDelta {
 	readonly isEmpty: boolean;
 
 	constructor(
-		readonly removedDocuments: IModel[],
-		readonly addedDocuments: IModel[],
+		readonly removedDocuments: ITextModel[],
+		readonly addedDocuments: ITextModel[],
 		readonly removedEditors: EditorSnapshot[],
 		readonly addedEditors: EditorSnapshot[],
 		readonly oldActiveEditor: string,
@@ -148,7 +141,7 @@ class DocumentAndEditorState {
 	}
 
 	constructor(
-		readonly documents: Set<IModel>,
+		readonly documents: Set<ITextModel>,
 		readonly editors: Map<string, EditorSnapshot>,
 		readonly activeEditor: string,
 	) {
@@ -198,7 +191,7 @@ class MainThreadDocumentAndEditorStateComputer {
 		}
 	}
 
-	private _updateStateOnModelAdd(model: IModel): void {
+	private _updateStateOnModelAdd(model: ITextModel): void {
 		if (model.isTooLargeForHavingARichMode()) {
 			// ignore
 			return;
@@ -220,14 +213,14 @@ class MainThreadDocumentAndEditorStateComputer {
 		this._onDidChangeState(new DocumentAndEditorStateDelta(
 			[], [model],
 			[], [],
-			this._currentState.activeEditor, this._currentState.activeEditor
+			undefined, undefined
 		));
 	}
 
 	private _updateState(): void {
 
 		// models: ignore too large models
-		const models = new Set<IModel>();
+		const models = new Set<ITextModel>();
 		for (const model of this._modelService.getModels()) {
 			if (!model.isTooLargeForHavingARichMode()) {
 				models.add(model);
@@ -296,13 +289,13 @@ export class MainThreadDocumentsAndEditors {
 
 	private _onTextEditorAdd = new Emitter<MainThreadTextEditor[]>();
 	private _onTextEditorRemove = new Emitter<string[]>();
-	private _onDocumentAdd = new Emitter<IModel[]>();
-	private _onDocumentRemove = new Emitter<string[]>();
+	private _onDocumentAdd = new Emitter<ITextModel[]>();
+	private _onDocumentRemove = new Emitter<URI[]>();
 
 	readonly onTextEditorAdd: Event<MainThreadTextEditor[]> = this._onTextEditorAdd.event;
 	readonly onTextEditorRemove: Event<string[]> = this._onTextEditorRemove.event;
-	readonly onDocumentAdd: Event<IModel[]> = this._onDocumentAdd.event;
-	readonly onDocumentRemove: Event<string[]> = this._onDocumentRemove.event;
+	readonly onDocumentAdd: Event<ITextModel[]> = this._onDocumentAdd.event;
+	readonly onDocumentRemove: Event<URI[]> = this._onDocumentRemove.event;
 
 	constructor(
 		extHostContext: IExtHostContext,
@@ -314,15 +307,14 @@ export class MainThreadDocumentsAndEditors {
 		@IFileService fileService: IFileService,
 		@ITextModelService textModelResolverService: ITextModelService,
 		@IUntitledEditorService untitledEditorService: IUntitledEditorService,
-		@IEditorGroupService editorGroupService: IEditorGroupService,
-		@ITelemetryService telemetryService: ITelemetryService
+		@IEditorGroupService editorGroupService: IEditorGroupService
 	) {
-		this._proxy = extHostContext.get(ExtHostContext.ExtHostDocumentsAndEditors);
+		this._proxy = extHostContext.getProxy(ExtHostContext.ExtHostDocumentsAndEditors);
 
 		const mainThreadDocuments = new MainThreadDocuments(this, extHostContext, this._modelService, modeService, this._textFileService, fileService, textModelResolverService, untitledEditorService);
 		extHostContext.set(MainContext.MainThreadDocuments, mainThreadDocuments);
 
-		const mainThreadEditors = new MainThreadEditors(this, extHostContext, codeEditorService, this._workbenchEditorService, editorGroupService, telemetryService, textModelResolverService, fileService, this._modelService);
+		const mainThreadEditors = new MainThreadEditors(this, extHostContext, codeEditorService, this._workbenchEditorService, editorGroupService, textModelResolverService, fileService, this._modelService);
 		extHostContext.set(MainContext.MainThreadEditors, mainThreadEditors);
 
 		// It is expected that the ctor of the state computer calls our `_onDelta`.
@@ -345,12 +337,12 @@ export class MainThreadDocumentsAndEditors {
 
 	private _onDelta(delta: DocumentAndEditorStateDelta): void {
 
-		let removedDocuments: string[];
+		let removedDocuments: URI[];
 		let removedEditors: string[] = [];
 		let addedEditors: MainThreadTextEditor[] = [];
 
 		// removed models
-		removedDocuments = delta.removedDocuments.map(m => m.uri.toString());
+		removedDocuments = delta.removedDocuments.map(m => m.uri);
 
 		// added editors
 		for (const apiEditor of delta.addedEditors) {
@@ -405,9 +397,9 @@ export class MainThreadDocumentsAndEditors {
 		}
 	}
 
-	private _toModelAddData(model: IModel): IModelAddedData {
+	private _toModelAddData(model: ITextModel): IModelAddedData {
 		return {
-			url: model.uri,
+			uri: model.uri,
 			versionId: model.getVersionId(),
 			lines: model.getLinesContent(),
 			EOL: model.getEOL(),
@@ -419,7 +411,7 @@ export class MainThreadDocumentsAndEditors {
 	private _toTextEditorAddData(textEditor: MainThreadTextEditor): ITextEditorAddData {
 		return {
 			id: textEditor.getId(),
-			document: textEditor.getModel().uri,
+			documentUri: textEditor.getModel().uri,
 			options: textEditor.getConfiguration(),
 			selections: textEditor.getSelections(),
 			editorPosition: this._findEditorPosition(textEditor)

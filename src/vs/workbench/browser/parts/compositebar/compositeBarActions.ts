@@ -12,7 +12,7 @@ import * as dom from 'vs/base/browser/dom';
 import { Builder, $ } from 'vs/base/browser/builder';
 import { BaseActionItem, IBaseActionItemOptions, Separator } from 'vs/base/browser/ui/actionbar/actionbar';
 import { ICommandService } from 'vs/platform/commands/common/commands';
-import { dispose } from 'vs/base/common/lifecycle';
+import { dispose, IDisposable, empty, toDisposable } from 'vs/base/common/lifecycle';
 import { IContextMenuService } from 'vs/platform/contextview/browser/contextView';
 import { IThemeService, ITheme } from 'vs/platform/theme/common/themeService';
 import { TextBadge, NumberBadge, IBadge, IconBadge, ProgressBadge } from 'vs/workbench/services/activity/common/activity';
@@ -26,6 +26,7 @@ import Event, { Emitter } from 'vs/base/common/event';
 export interface ICompositeActivity {
 	badge: IBadge;
 	clazz: string;
+	priority: number;
 }
 
 export interface ICompositeBar {
@@ -52,6 +53,7 @@ export interface ICompositeBar {
 
 export class ActivityAction extends Action {
 	private badge: IBadge;
+	private clazz: string | undefined;
 	private _onDidChangeBadge = new Emitter<this>();
 
 	constructor(private _activity: IActivity) {
@@ -84,8 +86,13 @@ export class ActivityAction extends Action {
 		return this.badge;
 	}
 
-	public setBadge(badge: IBadge): void {
+	public getClass(): string | undefined {
+		return this.clazz;
+	}
+
+	public setBadge(badge: IBadge, clazz?: string): void {
 		this.badge = badge;
+		this.clazz = clazz;
 		this._onDidChangeBadge.fire(this);
 	}
 }
@@ -109,6 +116,7 @@ export class ActivityActionItem extends BaseActionItem {
 	protected options: IActivityActionItemOptions;
 
 	private $badgeContent: Builder;
+	private badgeDisposable: IDisposable = empty;
 	private mouseUpTimeout: number;
 
 	constructor(
@@ -198,11 +206,10 @@ export class ActivityActionItem extends BaseActionItem {
 		this.updateStyles();
 	}
 
-	public setBadge(badge: IBadge): void {
-		this.updateBadge(badge);
-	}
+	protected updateBadge(badge: IBadge, clazz?: string): void {
+		this.badgeDisposable.dispose();
+		this.badgeDisposable = empty;
 
-	protected updateBadge(badge: IBadge): void {
 		this.$badgeContent.empty();
 		this.$badge.hide();
 
@@ -211,7 +218,13 @@ export class ActivityActionItem extends BaseActionItem {
 			// Number
 			if (badge instanceof NumberBadge) {
 				if (badge.number) {
-					this.$badgeContent.text(badge.number > 99 ? '99+' : badge.number.toString());
+					let number = badge.number.toString();
+					if (badge.number > 9999) {
+						number = nls.localize('largeNumberBadge', '10k+');
+					} else if (badge.number > 999) {
+						number = number.charAt(0) + 'k';
+					}
+					this.$badgeContent.text(number);
 					this.$badge.show();
 				}
 			}
@@ -230,6 +243,11 @@ export class ActivityActionItem extends BaseActionItem {
 			// Progress
 			else if (badge instanceof ProgressBadge) {
 				this.$badge.show();
+			}
+
+			if (clazz) {
+				this.$badge.addClass(clazz);
+				this.badgeDisposable = toDisposable(() => this.$badge.removeClass(clazz));
 			}
 		}
 
@@ -256,7 +274,7 @@ export class ActivityActionItem extends BaseActionItem {
 	private handleBadgeChangeEvenet(): void {
 		const action = this.getAction();
 		if (action instanceof ActivityAction) {
-			this.updateBadge(action.getBadge());
+			this.updateBadge(action.getBadge(), action.getClass());
 		}
 	}
 
@@ -291,10 +309,6 @@ export class CompositeOverflowActivityAction extends ActivityAction {
 }
 
 export class CompositeOverflowActivityActionItem extends ActivityActionItem {
-	// @ts-ignore unused property
-	private name: string;
-	// @ts-ignore unused property
-	private cssClass: string;
 	private actions: Action[];
 
 	constructor(
@@ -304,15 +318,10 @@ export class CompositeOverflowActivityActionItem extends ActivityActionItem {
 		private getBadge: (compositeId: string) => IBadge,
 		private getCompositeOpenAction: (compositeId: string) => Action,
 		colors: ICompositeBarColors,
-		// @ts-ignore unused injected service
-		@IInstantiationService private instantiationService: IInstantiationService,
 		@IContextMenuService private contextMenuService: IContextMenuService,
 		@IThemeService themeService: IThemeService
 	) {
 		super(action, { icon: true, colors }, themeService);
-
-		this.cssClass = action.class;
-		this.name = action.label;
 	}
 
 	public showMenu(): void {

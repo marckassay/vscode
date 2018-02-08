@@ -10,7 +10,8 @@ import severity from 'vs/base/common/severity';
 import Event from 'vs/base/common/event';
 import { IJSONSchemaSnippet } from 'vs/base/common/jsonSchema';
 import { createDecorator } from 'vs/platform/instantiation/common/instantiation';
-import { IModel as EditorIModel, IEditorContribution } from 'vs/editor/common/editorCommon';
+import { IEditorContribution } from 'vs/editor/common/editorCommon';
+import { ITextModel as EditorIModel } from 'vs/editor/common/model';
 import { IEditor } from 'vs/platform/editor/common/editor';
 import { Position } from 'vs/editor/common/core/position';
 import { ISuggestion } from 'vs/editor/common/modes';
@@ -36,9 +37,10 @@ export const CONTEXT_NOT_IN_DEBUG_REPL: ContextKeyExpr = CONTEXT_IN_DEBUG_REPL.t
 export const CONTEXT_ON_FIRST_DEBUG_REPL_LINE = new RawContextKey<boolean>('onFirsteDebugReplLine', false);
 export const CONTEXT_ON_LAST_DEBUG_REPL_LINE = new RawContextKey<boolean>('onLastDebugReplLine', false);
 export const CONTEXT_BREAKPOINT_WIDGET_VISIBLE = new RawContextKey<boolean>('breakpointWidgetVisible', false);
-export const CONTEXT_BREAKPOINTS_FOCUSED = new RawContextKey<boolean>('breakpointsFocused', false);
-export const CONTEXT_WATCH_EXPRESSIONS_FOCUSED = new RawContextKey<boolean>('watchExpressionsFocused', false);
-export const CONTEXT_VARIABLES_FOCUSED = new RawContextKey<boolean>('variablesFocused', false);
+export const CONTEXT_BREAKPOINTS_FOCUSED = new RawContextKey<boolean>('breakpointsFocused', true);
+export const CONTEXT_WATCH_EXPRESSIONS_FOCUSED = new RawContextKey<boolean>('watchExpressionsFocused', true);
+export const CONTEXT_VARIABLES_FOCUSED = new RawContextKey<boolean>('variablesFocused', true);
+export const CONTEXT_EXPRESSION_SELECTED = new RawContextKey<boolean>('expressionSelected', false);
 
 export const EDITOR_CONTRIBUTION_ID = 'editor.contrib.debug';
 export const DEBUG_SCHEME = 'debug';
@@ -221,10 +223,16 @@ export interface IEnablement extends ITreeElement {
 	enabled: boolean;
 }
 
-export interface IRawBreakpoint {
+export interface IBreakpointData {
+	id?: string;
 	lineNumber: number;
 	column?: number;
 	enabled?: boolean;
+	condition?: string;
+	hitCondition?: string;
+}
+
+export interface IBreakpointUpdateData extends DebugProtocol.Breakpoint {
 	condition?: string;
 	hitCondition?: string;
 }
@@ -288,7 +296,6 @@ export interface IViewModel extends ITreeElement {
 	onDidFocusProcess: Event<IProcess | undefined>;
 	onDidFocusStackFrame: Event<{ stackFrame: IStackFrame, explicit: boolean }>;
 	onDidSelectExpression: Event<IExpression>;
-	onDidSelectFunctionBreakpoint: Event<IFunctionBreakpoint>;
 }
 
 export interface IModel extends ITreeElement {
@@ -300,10 +307,19 @@ export interface IModel extends ITreeElement {
 	getWatchExpressions(): IExpression[];
 	getReplElements(): IReplElement[];
 
-	onDidChangeBreakpoints: Event<void>;
+	onDidChangeBreakpoints: Event<IBreakpointsChangeEvent>;
 	onDidChangeCallStack: Event<void>;
 	onDidChangeWatchExpressions: Event<IExpression>;
 	onDidChangeReplElements: Event<void>;
+}
+
+/**
+ * An event describing a change to the set of [breakpoints](#debug.Breakpoint).
+ */
+export interface IBreakpointsChangeEvent {
+	added?: (IBreakpoint | IFunctionBreakpoint)[];
+	removed?: (IBreakpoint | IFunctionBreakpoint)[];
+	changed?: (IBreakpoint | IFunctionBreakpoint)[];
 }
 
 // Debug enums
@@ -323,6 +339,7 @@ export interface IDebugConfiguration {
 	openExplorerOnEnd: boolean;
 	inlineValues: boolean;
 	hideActionBar: boolean;
+	showInStatusBar: string;
 	internalConsoleOptions: string;
 }
 
@@ -353,7 +370,7 @@ export interface IConfig extends IEnvConfig {
 
 export interface ICompound {
 	name: string;
-	configurations: string[];
+	configurations: (string | { name: string, folder: string })[];
 }
 
 export interface IAdapterExecutable {
@@ -391,6 +408,7 @@ export interface IDebugConfigurationProvider {
 	handle: number;
 	resolveDebugConfiguration?(folderUri: uri | undefined, debugConfiguration: IConfig): TPromise<IConfig>;
 	provideDebugConfigurations?(folderUri: uri | undefined): TPromise<IConfig[]>;
+	debugAdapterExecutable(folderUri: uri | undefined): TPromise<IAdapterExecutable>;
 }
 
 export interface IConfigurationManager {
@@ -400,11 +418,12 @@ export interface IConfigurationManager {
 	canSetBreakpointsIn(model: EditorIModel): boolean;
 
 	/**
-	 * Returns null for no folder workspace. Otherwise returns a launch object corresponding to the selected debug configuration.
+	 * Returns an object containing the selected launch configuration and the selected configuration name. Both these fields can be null (no folder workspace).
 	 */
-	selectedLaunch: ILaunch;
-
-	selectedName: string;
+	selectedConfiguration: {
+		launch: ILaunch;
+		name: string;
+	};
 
 	selectConfiguration(launch: ILaunch, name?: string, debugStarted?: boolean): void;
 
@@ -417,7 +436,9 @@ export interface IConfigurationManager {
 
 	registerDebugConfigurationProvider(handle: number, debugConfigurationProvider: IDebugConfigurationProvider): void;
 	unregisterDebugConfigurationProvider(handle: number): void;
+
 	resolveConfigurationByProviders(folderUri: uri | undefined, type: string | undefined, debugConfiguration: any): TPromise<any>;
+	debugAdapterExecutable(folderUri: uri | undefined, type: string): TPromise<IAdapterExecutable | undefined>;
 }
 
 export interface ILaunch {
@@ -427,7 +448,20 @@ export interface ILaunch {
 	 */
 	uri: uri;
 
+	/**
+	 * Name of the launch.
+	 */
+	name: string;
+
+	/**
+	 * Workspace of the launch. Can be null.
+	 */
 	workspace: IWorkspaceFolder;
+
+	/**
+	 * Should this launch be shown in the debug dropdown.
+	 */
+	hidden: boolean;
 
 	/**
 	 * Returns a configuration with the specified name.
@@ -445,7 +479,7 @@ export interface ILaunch {
 	 * Returns the names of all configurations and compounds.
 	 * Ignores configurations which are invalid.
 	 */
-	getConfigurationNames(): string[];
+	getConfigurationNames(includeCompounds?: boolean): string[];
 
 	/**
 	 * Returns the resolved configuration.
@@ -503,12 +537,17 @@ export interface IDebugService {
 	/**
 	 * Sets the focused stack frame and evaluates all expressions against the newly focused stack frame,
 	 */
-	focusStackFrameAndEvaluate(focusedStackFrame: IStackFrame, process?: IProcess, explicit?: boolean): TPromise<void>;
+	focusStackFrame(focusedStackFrame: IStackFrame, thread?: IThread, process?: IProcess, explicit?: boolean): void;
 
 	/**
 	 * Adds new breakpoints to the model for the file specified with the uri. Notifies debug adapter of breakpoint changes.
 	 */
-	addBreakpoints(uri: uri, rawBreakpoints: IRawBreakpoint[]): TPromise<void>;
+	addBreakpoints(uri: uri, rawBreakpoints: IBreakpointData[]): TPromise<void>;
+
+	/**
+	 * Updates the breakpoints.
+	 */
+	updateBreakpoints(uri: uri, data: { [id: string]: IBreakpointUpdateData }): void;
 
 	/**
 	 * Enables or disables all breakpoints. If breakpoint is passed only enables or disables the passed breakpoint.
@@ -529,9 +568,9 @@ export interface IDebugService {
 	removeBreakpoints(id?: string): TPromise<any>;
 
 	/**
-	 * Adds a new no name function breakpoint. The function breakpoint should be renamed once user enters the name.
+	 * Adds a new function breakpoint for the given name.
 	 */
-	addFunctionBreakpoint(): void;
+	addFunctionBreakpoint(name?: string, id?: string): void;
 
 	/**
 	 * Renames an already existing function breakpoint.
@@ -563,12 +602,12 @@ export interface IDebugService {
 	/**
 	 * Adds a new watch expression and evaluates it against the debug adapter.
 	 */
-	addWatchExpression(name?: string): TPromise<void>;
+	addWatchExpression(name?: string): void;
 
 	/**
 	 * Renames a watch expression and evaluates it against the debug adapter.
 	 */
-	renameWatchExpression(id: string, newName: string): TPromise<void>;
+	renameWatchExpression(id: string, newName: string): void;
 
 	/**
 	 * Moves a watch expression to a new possition. Used for reordering watch expressions.
@@ -579,11 +618,6 @@ export interface IDebugService {
 	 * Removes all watch expressions. If id is passed only removes the watch expression with the passed id.
 	 */
 	removeWatchExpressions(id?: string): void;
-
-	/**
-	 * Evaluates all watch expression.
-	 */
-	evaluateWatchExpressions(): TPromise<void>;
 
 	/**
 	 * Starts debugging. If the configOrName is not passed uses the selected configuration in the debug dropdown.

@@ -163,7 +163,7 @@ export interface IOptimizeTaskOpts {
 	/**
 	 * (languages to process)
 	 */
-	languages: string[];
+	languages: i18n.Language[];
 }
 export function optimizeTask(opts: IOptimizeTaskOpts): () => NodeJS.ReadWriteStream {
 	const entryPoints = opts.entryPoints;
@@ -239,7 +239,7 @@ export function optimizeTask(opts: IOptimizeTaskOpts): () => NodeJS.ReadWriteStr
 			}))
 			.pipe(gulp.dest(out));
 	};
-};
+}
 
 declare class FileWithCopyright extends VinylFile {
 	public __hasOurCopyright: boolean;
@@ -285,8 +285,7 @@ function uglifyWithCopyrights(): NodeJS.ReadWriteStream {
 			return stream.pipe(minify({
 				output: {
 					comments: preserveComments(<FileWithCopyright>f),
-					// linux tfs build agent is crashing, does this help?§
-					max_line_len: 3200000
+					max_line_len: 1024
 				}
 			}));
 		}));
@@ -325,4 +324,4 @@ export function minifyTask(src: string, sourceMapBaseUrl: string): (cb: any) => 
 				cb(err);
 			});
 	};
-};
+}

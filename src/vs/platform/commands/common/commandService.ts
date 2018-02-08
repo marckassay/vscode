@@ -6,11 +6,11 @@
 
 import { TPromise } from 'vs/base/common/winjs.base';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
-import { ICommandService, ICommand, ICommandEvent, CommandsRegistry } from 'vs/platform/commands/common/commands';
+import { ICommandService, ICommandEvent, CommandsRegistry } from 'vs/platform/commands/common/commands';
 import { IExtensionService } from 'vs/platform/extensions/common/extensions';
 import Event, { Emitter } from 'vs/base/common/event';
 import { Disposable } from 'vs/base/common/lifecycle';
-import { IContextKeyService } from 'vs/platform/contextkey/common/contextkey';
+import { ILogService } from 'vs/platform/log/common/log';
 
 export class CommandService extends Disposable implements ICommandService {
 
@@ -24,35 +24,38 @@ export class CommandService extends Disposable implements ICommandService {
 	constructor(
 		@IInstantiationService private _instantiationService: IInstantiationService,
 		@IExtensionService private _extensionService: IExtensionService,
-		@IContextKeyService private _contextKeyService: IContextKeyService
+		@ILogService private _logService: ILogService
 	) {
 		super();
-		this._extensionService.onReady().then(value => this._extensionHostIsReady = value);
+		this._extensionService.whenInstalledExtensionsRegistered().then(value => this._extensionHostIsReady = value);
 	}
 
 	executeCommand<T>(id: string, ...args: any[]): TPromise<T> {
+		this._logService.trace('CommandService#executeCommand', id);
+
 		// we always send an activation event, but
 		// we don't wait for it when the extension
-		// host didn't yet start
+		// host didn't yet start and the command is already registered
 
 		const activation = this._extensionService.activateByEvent(`onCommand:${id}`);
+		const commandIsRegistered = !!CommandsRegistry.getCommand(id);
 
-		return this._extensionHostIsReady
-			? activation.then(_ => this._tryExecuteCommand(id, args))
-			: this._tryExecuteCommand(id, args);
+		if (!this._extensionHostIsReady && commandIsRegistered) {
+			return this._tryExecuteCommand(id, args);
+		} else {
+			let waitFor: TPromise<any> = activation;
+			if (!commandIsRegistered) {
+				waitFor = TPromise.join([activation, this._extensionService.activateByEvent(`*`)]);
+			}
+			return waitFor.then(_ => this._tryExecuteCommand(id, args));
+		}
 	}
 
 	private _tryExecuteCommand(id: string, args: any[]): TPromise<any> {
-		const command = this._getCommand(id);
+		const command = CommandsRegistry.getCommand(id);
 		if (!command) {
 			return TPromise.wrapError(new Error(`command '${id}' not found`));
 		}
-
-		if (command.precondition && !this._contextKeyService.contextMatchesRules(command.precondition)) {
-			// not enabled
-			return TPromise.wrapError(new Error('NOT_ENABLED'));
-		}
-
 		try {
 			this._onWillExecuteCommand.fire({ commandId: id });
 			const result = this._instantiationService.invokeFunction.apply(this._instantiationService, [command.handler].concat(args));
@@ -60,9 +63,5 @@ export class CommandService extends Disposable implements ICommandService {
 		} catch (err) {
 			return TPromise.wrapError(err);
 		}
-	}
-
-	private _getCommand(id: string): ICommand {
-		return CommandsRegistry.getCommand(id);
 	}
 }

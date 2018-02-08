@@ -29,6 +29,8 @@ export const IWorkbenchEditorService = createDecorator<IWorkbenchEditorService>(
 
 export type IResourceInputType = IResourceInput | IUntitledResourceInput | IResourceDiffInput | IResourceSideBySideInput;
 
+export type ICloseEditorsFilter = { except?: IEditorInput, direction?: Direction, unmodifiedOnly?: boolean };
+
 /**
  * The editor service allows to open editors and work on the active
  * editor input and models.
@@ -52,14 +54,6 @@ export interface IWorkbenchEditorService extends IEditorService {
 	getVisibleEditors(): IEditor[];
 
 	/**
-	 * Returns if the provided input is currently visible.
-	 *
-	 * @param includeDiff if set to true, will also consider diff editors to find out if the provided
-	 * input is opened either on the left or right hand side of the diff editor.
-	 */
-	isVisible(input: IEditorInput, includeDiff: boolean): boolean;
-
-	/**
 	 * Opens an Editor on the given input with the provided options at the given position. If sideBySide parameter
 	 * is provided, causes the editor service to decide in what position to open the input.
 	 */
@@ -76,8 +70,10 @@ export interface IWorkbenchEditorService extends IEditorService {
 	 * Similar to #openEditor() but allows to open multiple editors for different positions at the same time. If there are
 	 * more than one editor per position, only the first one will be active and the others stacked behind inactive.
 	 */
-	openEditors(editors: { input: IResourceInputType, position: Position }[]): TPromise<IEditor[]>;
-	openEditors(editors: { input: IEditorInput, position: Position, options?: IEditorOptions | ITextEditorOptions }[]): TPromise<IEditor[]>;
+	openEditors(editors: { input: IResourceInputType, position?: Position }[]): TPromise<IEditor[]>;
+	openEditors(editors: { input: IEditorInput, position?: Position, options?: IEditorOptions | ITextEditorOptions }[]): TPromise<IEditor[]>;
+	openEditors(editors: { input: IResourceInputType }[], sideBySide?: boolean): TPromise<IEditor[]>;
+	openEditors(editors: { input: IEditorInput, options?: IEditorOptions | ITextEditorOptions }[], sideBySide?: boolean): TPromise<IEditor[]>;
 
 	/**
 	 * Given a list of editors to replace, will look across all groups where this editor is open (active or hidden)
@@ -92,16 +88,32 @@ export interface IWorkbenchEditorService extends IEditorService {
 	closeEditor(position: Position, input: IEditorInput): TPromise<void>;
 
 	/**
+	 * Closes all editors of the provided groups, or all editors across all groups
+	 * if no position is provided.
+	 */
+	closeEditors(positions?: Position[]): TPromise<void>;
+
+	/**
 	 * Closes editors of a specific group at the provided position. If the optional editor is provided to exclude, it
 	 * will not be closed. The direction can be used in that case to control if all other editors should get closed,
 	 * or towards a specific direction.
 	 */
-	closeEditors(position: Position, filter?: { except?: IEditorInput, direction?: Direction, unmodifiedOnly?: boolean }): TPromise<void>;
+	closeEditors(position: Position, filter?: ICloseEditorsFilter): TPromise<void>;
 
 	/**
-	 * Closes all editors across all groups. The optional position allows to keep one group alive.
+	 * Closes the provided editors of a specific group at the provided position.
 	 */
-	closeAllEditors(except?: Position): TPromise<void>;
+	closeEditors(position: Position, editors: IEditorInput[]): TPromise<void>;
+
+	/**
+	 * Closes specific editors across all groups at once.
+	 */
+	closeEditors(editors: { positionOne?: ICloseEditorsFilter, positionTwo?: ICloseEditorsFilter, positionThree?: ICloseEditorsFilter }): TPromise<void>;
+
+	/**
+	 * Closes specific editors across all groups at once.
+	 */
+	closeEditors(editors: { positionOne?: IEditorInput[], positionTwo?: IEditorInput[], positionThree?: IEditorInput[] }): TPromise<void>;
 
 	/**
 	 * Allows to resolve an untyped input to a workbench typed instanceof editor input
@@ -112,11 +124,15 @@ export interface IWorkbenchEditorService extends IEditorService {
 export interface IEditorPart {
 	openEditor(input?: IEditorInput, options?: IEditorOptions | ITextEditorOptions, sideBySide?: boolean): TPromise<IEditor>;
 	openEditor(input?: IEditorInput, options?: IEditorOptions | ITextEditorOptions, position?: Position): TPromise<IEditor>;
-	openEditors(editors: { input: IEditorInput, position: Position, options?: IEditorOptions | ITextEditorOptions }[]): TPromise<IEditor[]>;
+	openEditors(editors: { input: IEditorInput, position?: Position, options?: IEditorOptions | ITextEditorOptions }[]): TPromise<IEditor[]>;
+	openEditors(editors: { input: IEditorInput, options?: IEditorOptions | ITextEditorOptions }[], sideBySide?: boolean): TPromise<IEditor[]>;
 	replaceEditors(editors: { toReplace: IEditorInput, replaceWith: IEditorInput, options?: IEditorOptions | ITextEditorOptions }[], position?: Position): TPromise<IEditor[]>;
+	closeEditors(positions?: Position[]): TPromise<void>;
 	closeEditor(position: Position, input: IEditorInput): TPromise<void>;
-	closeEditors(position: Position, filter?: { except?: IEditorInput, direction?: Direction, unmodifiedOnly?: boolean }): TPromise<void>;
-	closeAllEditors(except?: Position): TPromise<void>;
+	closeEditors(position: Position, filter?: ICloseEditorsFilter): TPromise<void>;
+	closeEditors(position: Position, editors: IEditorInput[]): TPromise<void>;
+	closeEditors(editors: { positionOne?: ICloseEditorsFilter, positionTwo?: ICloseEditorsFilter, positionThree?: ICloseEditorsFilter }): TPromise<void>;
+	closeEditors(editors: { positionOne?: IEditorInput[], positionTwo?: IEditorInput[], positionThree?: IEditorInput[] }): TPromise<void>;
 	getActiveEditor(): IEditor;
 	getVisibleEditors(): IEditor[];
 	getActiveEditorInput(): IEditorInput;
@@ -155,29 +171,6 @@ export class WorkbenchEditorService implements IWorkbenchEditorService {
 
 	public getVisibleEditors(): IEditor[] {
 		return this.editorPart.getVisibleEditors();
-	}
-
-	public isVisible(input: IEditorInput, includeSideBySide: boolean): boolean {
-		if (!input) {
-			return false;
-		}
-
-		return this.getVisibleEditors().some(editor => {
-			if (!editor.input) {
-				return false;
-			}
-
-			if (input.matches(editor.input)) {
-				return true;
-			}
-
-			if (includeSideBySide && editor.input instanceof SideBySideEditorInput) {
-				const sideBySideInput = <SideBySideEditorInput>editor.input;
-				return input.matches(sideBySideInput.master) || input.matches(sideBySideInput.details);
-			}
-
-			return false;
-		});
 	}
 
 	public openEditor(input: IEditorInput, options?: IEditorOptions, sideBySide?: boolean): TPromise<IEditor>;
@@ -239,7 +232,9 @@ export class WorkbenchEditorService implements IWorkbenchEditorService {
 
 	public openEditors(editors: { input: IResourceInputType, position: Position }[]): TPromise<IEditor[]>;
 	public openEditors(editors: { input: IEditorInput, position: Position, options?: IEditorOptions }[]): TPromise<IEditor[]>;
-	public openEditors(editors: any[]): TPromise<IEditor[]> {
+	public openEditors(editors: { input: IResourceInputType }[], sideBySide?: boolean): TPromise<IEditor[]>;
+	public openEditors(editors: { input: IEditorInput, options?: IEditorOptions }[], sideBySide?: boolean): TPromise<IEditor[]>;
+	public openEditors(editors: any[], sideBySide?: boolean): TPromise<IEditor[]> {
 		const inputs = editors.map(editor => this.createInput(editor.input));
 		const typedInputs: { input: IEditorInput, position: Position, options?: EditorOptions }[] = inputs.map((input, index) => {
 			const options = editors[index].input instanceof EditorInput ? this.toOptions(editors[index].options) : TextEditorOptions.from(editors[index].input);
@@ -251,7 +246,7 @@ export class WorkbenchEditorService implements IWorkbenchEditorService {
 			};
 		});
 
-		return this.editorPart.openEditors(typedInputs);
+		return this.editorPart.openEditors(typedInputs, sideBySide);
 	}
 
 	public replaceEditors(editors: { toReplace: IResourceInputType, replaceWith: IResourceInputType }[], position?: Position): TPromise<IEditor[]>;
@@ -280,12 +275,13 @@ export class WorkbenchEditorService implements IWorkbenchEditorService {
 		return this.editorPart.closeEditor(position, input);
 	}
 
-	public closeEditors(position: Position, filter?: { except?: IEditorInput, direction?: Direction, unmodifiedOnly?: boolean }): TPromise<void> {
-		return this.editorPart.closeEditors(position, filter);
-	}
-
-	public closeAllEditors(except?: Position): TPromise<void> {
-		return this.editorPart.closeAllEditors(except);
+	public closeEditors(positions?: Position[]): TPromise<void>;
+	public closeEditors(position: Position, filter?: ICloseEditorsFilter): TPromise<void>;
+	public closeEditors(position: Position, editors: IEditorInput[]): TPromise<void>;
+	public closeEditors(editors: { positionOne?: ICloseEditorsFilter, positionTwo?: ICloseEditorsFilter, positionThree?: ICloseEditorsFilter }): TPromise<void>;
+	public closeEditors(editors: { positionOne?: IEditorInput[], positionTwo?: IEditorInput[], positionThree?: IEditorInput[] }): TPromise<void>;
+	public closeEditors(positionsOrEditors: any, filterOrEditors?: any): TPromise<void> {
+		return this.editorPart.closeEditors(positionsOrEditors, filterOrEditors);
 	}
 
 	public createInput(input: IEditorInput): EditorInput;
@@ -311,7 +307,7 @@ export class WorkbenchEditorService implements IWorkbenchEditorService {
 		if (resourceDiffInput.leftResource && resourceDiffInput.rightResource) {
 			const leftInput = this.createInput({ resource: resourceDiffInput.leftResource });
 			const rightInput = this.createInput({ resource: resourceDiffInput.rightResource });
-			const label = resourceDiffInput.label || this.toDiffLabel(resourceDiffInput.leftResource, resourceDiffInput.rightResource, this.workspaceContextService, this.environmentService);
+			const label = resourceDiffInput.label || nls.localize('compareLabels', "{0} ↔ {1}", this.toDiffLabel(leftInput, this.workspaceContextService, this.environmentService), this.toDiffLabel(rightInput, this.workspaceContextService, this.environmentService));
 
 			return new DiffEditorInput(label, resourceDiffInput.description, leftInput, rightInput);
 		}
@@ -383,11 +379,16 @@ export class WorkbenchEditorService implements IWorkbenchEditorService {
 		return input;
 	}
 
-	private toDiffLabel(res1: URI, res2: URI, context: IWorkspaceContextService, environment: IEnvironmentService): string {
-		const leftName = getPathLabel(res1.fsPath, context, environment);
-		const rightName = getPathLabel(res2.fsPath, context, environment);
+	private toDiffLabel(input: EditorInput, context: IWorkspaceContextService, environment: IEnvironmentService): string {
+		const res = input.getResource();
 
-		return nls.localize('compareLabels', "{0} ↔ {1}", leftName, rightName);
+		// Do not try to extract any paths from simple untitled editors
+		if (res.scheme === 'untitled' && !this.untitledEditorService.hasAssociatedFilePath(res)) {
+			return input.getName();
+		}
+
+		// Otherwise: for diff labels prefer to see the path as part of the label
+		return getPathLabel(res.fsPath, context, environment);
 	}
 }
 

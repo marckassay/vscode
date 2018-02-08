@@ -11,13 +11,12 @@ import { toErrorMessage } from 'vs/base/common/errorMessage';
 import types = require('vs/base/common/types');
 import paths = require('vs/base/common/paths');
 import { Action } from 'vs/base/common/actions';
-import { VIEWLET_ID, TEXT_FILE_EDITOR_ID } from 'vs/workbench/parts/files/common/files';
+import { VIEWLET_ID, TEXT_FILE_EDITOR_ID, IExplorerViewlet } from 'vs/workbench/parts/files/common/files';
 import { ITextFileEditorModel, ITextFileService } from 'vs/workbench/services/textfile/common/textfiles';
 import { BaseTextEditor } from 'vs/workbench/browser/parts/editor/textEditor';
 import { EditorOptions, TextEditorOptions, IEditorCloseEvent } from 'vs/workbench/common/editor';
 import { BinaryEditorModel } from 'vs/workbench/common/editor/binaryEditorModel';
 import { FileEditorInput } from 'vs/workbench/parts/files/common/editors/fileEditorInput';
-import { ExplorerViewlet } from 'vs/workbench/parts/files/browser/explorerViewlet';
 import { IViewletService } from 'vs/workbench/services/viewlet/browser/viewlet';
 import { FileOperationError, FileOperationResult, FileChangesEvent, IFileService } from 'vs/platform/files/common/files';
 import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
@@ -36,7 +35,7 @@ import { ScrollType } from 'vs/editor/common/editorCommon';
  */
 export class TextFileEditor extends BaseTextEditor {
 
-	public static ID = TEXT_FILE_EDITOR_ID;
+	public static readonly ID = TEXT_FILE_EDITOR_ID;
 
 	constructor(
 		@ITelemetryService telemetryService: ITelemetryService,
@@ -63,7 +62,7 @@ export class TextFileEditor extends BaseTextEditor {
 	private onFilesChanged(e: FileChangesEvent): void {
 		const deleted = e.getDeleted();
 		if (deleted && deleted.length) {
-			this.clearTextEditorViewState(deleted.map(d => d.resource.toString()));
+			this.clearTextEditorViewState(deleted.map(d => d.resource));
 		}
 	}
 
@@ -128,7 +127,7 @@ export class TextFileEditor extends BaseTextEditor {
 				textEditor.setModel(textFileModel.textEditorModel);
 
 				// Always restore View State if any associated
-				const editorViewState = this.loadTextEditorViewState(this.input.getResource().toString());
+				const editorViewState = this.loadTextEditorViewState(this.input.getResource());
 				if (editorViewState) {
 					textEditor.restoreViewState(editorViewState);
 				}
@@ -191,7 +190,7 @@ export class TextFileEditor extends BaseTextEditor {
 			// Best we can do is to reveal the folder in the explorer
 			if (this.contextService.isInsideWorkspace(input.getResource())) {
 				this.viewletService.openViewlet(VIEWLET_ID, true).done(viewlet => {
-					return (viewlet as ExplorerViewlet).getExplorerView().select(input.getResource(), true);
+					return (viewlet as IExplorerViewlet).getExplorerView().select(input.getResource(), true);
 				}, errors.onUnexpectedError);
 			}
 		}, errors.onUnexpectedError);
@@ -236,7 +235,7 @@ export class TextFileEditor extends BaseTextEditor {
 
 	private doSaveTextEditorViewState(input: FileEditorInput): void {
 		if (input && !input.isDisposed()) {
-			this.saveTextEditorViewState(input.getResource().toString());
+			this.saveTextEditorViewState(input.getResource());
 		}
 	}
 }
