@@ -847,7 +847,7 @@ export class List<T> implements ISpliceable<T>, IDisposable {
 
 	selectNext(n = 1, loop = false): void {
 		if (this.length === 0) { return; }
-		const selection = this.selection.get();
+		const selection = this.selection.get().reverse();
 		let index = selection.length > 0 ? selection[0] + n : 0;
 		this.setSelection(loop ? [index % this.length] : [Math.min(index, this.length - 1)]);
 	}

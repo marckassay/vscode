@@ -51,7 +51,7 @@ import { render as renderOcticons } from 'vs/base/browser/ui/octiconLabel/octico
 import { StandardMouseEvent } from 'vs/base/browser/mouseEvent';
 import * as platform from 'vs/base/common/platform';
 import { format } from 'vs/base/common/strings';
-import { ISpliceable, ISequence, ISplice } from 'vs/base/common/sequence';
+import { ISequence, ISplice } from 'vs/base/common/sequence';
 import { firstIndex } from 'vs/base/common/arrays';
 import { WorkbenchList } from 'vs/platform/list/browser/listService';
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
@@ -597,7 +597,7 @@ class ResourceGroupSplicer {
 
 	constructor(
 		groupSequence: ISequence<ISCMResourceGroup>,
-		private spliceable: ISpliceable<ISCMResourceGroup | ISCMResource>
+		private spliceableList: List<ISCMResourceGroup | ISCMResource>
 	) {
 		groupSequence.onDidSplice(this.onDidSpliceGroups, this, this.disposables);
 		this.onDidSpliceGroups({ start: 0, deleteCount: 0, toInsert: groupSequence.elements });
@@ -646,7 +646,7 @@ class ResourceGroupSplicer {
 			item.disposable.dispose();
 		}
 
-		this.spliceable.splice(absoluteStart, absoluteDeleteCount, absoluteToInsert);
+		this.spliceableList.splice(absoluteStart, absoluteDeleteCount, absoluteToInsert);
 	}
 
 	private onDidChangeGroup(group: ISCMResourceGroup): void {
@@ -671,9 +671,9 @@ class ResourceGroupSplicer {
 		}
 
 		if (visible) {
-			this.spliceable.splice(absoluteStart, 0, [group, ...group.elements]);
+			this.spliceableList.splice(absoluteStart, 0, [group, ...group.elements]);
 		} else {
-			this.spliceable.splice(absoluteStart, 1 + group.elements.length, []);
+			this.spliceableList.splice(absoluteStart, 1 + group.elements.length, []);
 		}
 
 		item.visible = visible;
@@ -693,6 +693,10 @@ class ResourceGroupSplicer {
 			return;
 		}
 
+		if (deleteCount > 0) {
+			this.selectNextItem();
+		}
+
 		let absoluteStart = start;
 
 		for (let i = 0; i < itemIndex; i++) {
@@ -701,14 +705,26 @@ class ResourceGroupSplicer {
 		}
 
 		if (item.visible && !visible) {
-			this.spliceable.splice(absoluteStart, 1 + deleteCount, toInsert);
+			this.spliceableList.splice(absoluteStart, 1 + deleteCount, toInsert);
 		} else if (!item.visible && visible) {
-			this.spliceable.splice(absoluteStart, deleteCount, [group, ...toInsert]);
+			this.spliceableList.splice(absoluteStart, deleteCount, [group, ...toInsert]);
 		} else {
-			this.spliceable.splice(absoluteStart + 1, deleteCount, toInsert);
+			this.spliceableList.splice(absoluteStart + 1, deleteCount, toInsert);
 		}
 
 		item.visible = visible;
+
+		this.openSelectedItem();
+	}
+
+	private selectNextItem() {
+		this.spliceableList.selectNext(1, true);
+	}
+
+	private openSelectedItem() {
+		const selectedItems = this.spliceableList.getSelection();
+		this.spliceableList.setFocus(selectedItems);
+		this.spliceableList.open(selectedItems);
 	}
 
 	dispose(): void {
