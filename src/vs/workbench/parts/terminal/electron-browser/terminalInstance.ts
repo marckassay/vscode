@@ -104,6 +104,7 @@ export class TerminalInstance implements ITerminalInstance {
 	private _widgetManager: TerminalWidgetManager;
 	private _linkHandler: TerminalLinkHandler;
 
+	public disableLayout: boolean;
 	public get id(): number { return this._id; }
 	public get processId(): number { return this._processId; }
 	public get onDisposed(): Event<ITerminalInstance> { return this._onDisposed.event; }
@@ -145,6 +146,7 @@ export class TerminalInstance implements ITerminalInstance {
 		this._id = TerminalInstance._idCounter++;
 		this._terminalHasTextContextKey = KEYBINDING_CONTEXT_TERMINAL_TEXT_SELECTED.bindTo(this._contextKeyService);
 		this._preLaunchInputQueue = '';
+		this.disableLayout = false;
 
 		this._logService.trace(`terminalInstance#ctor (id: ${this.id})`, this._shellLaunchConfig);
 
@@ -223,7 +225,7 @@ export class TerminalInstance implements ITerminalInstance {
 			return null;
 		}
 
-		const font = this._configHelper.getFont();
+		const font = this._configHelper.getFont(this._xterm);
 
 		// Because xterm.js converts from CSS pixels to actual pixels through
 		// the use of canvas, window.devicePixelRatio needs to be used here in
@@ -243,7 +245,7 @@ export class TerminalInstance implements ITerminalInstance {
 
 	private _getDimension(width: number, height: number): Dimension {
 		// The font needs to have been initialized
-		const font = this._configHelper.getFont();
+		const font = this._configHelper.getFont(this._xterm);
 		if (!font || !font.charWidth || !font.charHeight) {
 			return null;
 		}
@@ -285,7 +287,7 @@ export class TerminalInstance implements ITerminalInstance {
 			Terminal.strings.tooMuchOutput = nls.localize('terminal.integrated.a11yTooMuchOutput', 'Too much output to announce, navigate to rows manually to read');
 		}
 		const accessibilitySupport = this._configurationService.getValue<IEditorOptions>('editor').accessibilitySupport;
-		const font = this._configHelper.getFont(true);
+		const font = this._configHelper.getFont(undefined, true);
 		this._xterm = new Terminal({
 			scrollback: this._configHelper.config.scrollback,
 			theme: this._getXtermTheme(),
@@ -1090,13 +1092,17 @@ export class TerminalInstance implements ITerminalInstance {
 	}
 
 	public layout(dimension: Dimension): void {
+		if (this.disableLayout) {
+			return;
+		}
+
 		const terminalWidth = this._evaluateColsAndRows(dimension.width, dimension.height);
 		if (!terminalWidth) {
 			return;
 		}
 
 		if (this._xterm) {
-			const font = this._configHelper.getFont();
+			const font = this._configHelper.getFont(this._xterm);
 
 			// Only apply these settings when the terminal is visible so that
 			// the characters are measured correctly.

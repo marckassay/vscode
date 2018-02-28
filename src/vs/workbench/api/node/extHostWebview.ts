@@ -127,18 +127,15 @@ export class ExtHostWebviews implements ExtHostWebviewsShape {
 
 	createWebview(
 		uri: vscode.Uri,
+		title: string,
 		viewColumn: vscode.ViewColumn,
 		options: vscode.WebviewOptions
 	): vscode.Webview {
 		const handle = ExtHostWebviews.handlePool++;
-		if (!this._webviews.has(handle)) {
-			this._proxy.$createWebview(handle, uri, options);
+		this._proxy.$createWebview(handle, uri, title, typeConverters.fromViewColumn(viewColumn), options);
 
-			const webview = new ExtHostWebview(handle, this._proxy, uri, viewColumn, options);
-			this._webviews.set(handle, webview);
-		}
-
-		this._proxy.$show(handle, typeConverters.fromViewColumn(viewColumn));
+		const webview = new ExtHostWebview(handle, this._proxy, uri, viewColumn, options);
+		this._webviews.set(handle, webview);
 		return this._webviews.get(handle);
 	}
 
@@ -153,11 +150,12 @@ export class ExtHostWebviews implements ExtHostWebviewsShape {
 		this._onDidChangeActiveWebview.fire(webview);
 	}
 
-	$onDidDisposeWeview(handle: WebviewHandle): void {
+	$onDidDisposeWeview(handle: WebviewHandle): Thenable<void> {
 		const webview = this._webviews.get(handle);
 		if (webview) {
 			webview.onDisposeEmitter.fire();
 		}
+		return Promise.resolve(void 0);
 	}
 
 	$onDidChangePosition(handle: WebviewHandle, newPosition: Position): void {

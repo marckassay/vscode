@@ -364,14 +364,14 @@ export class ExtensionEditor extends BaseEditor {
 		this.extensionActionBar.push([reloadAction, updateAction, enableAction, disableAction, installAction, maliciousStatusAction], { icon: true, label: true });
 		this.transientDisposables.push(enableAction, updateAction, reloadAction, disableAction, installAction, maliciousStatusAction);
 
+		this.content.innerHTML = ''; // Clear content before setting navbar actions.
+
 		this.navbar.clear();
 		this.navbar.onChange(this.onNavbarChange.bind(this, extension), this, this.transientDisposables);
 		this.navbar.push(NavbarSection.Readme, localize('details', "Details"));
 		this.navbar.push(NavbarSection.Contributions, localize('contributions', "Contributions"));
 		this.navbar.push(NavbarSection.Changelog, localize('changelog', "Changelog"));
 		this.navbar.push(NavbarSection.Dependencies, localize('dependencies', "Dependencies"));
-
-		this.content.innerHTML = '';
 
 		return super.setInput(input, options);
 	}
@@ -730,8 +730,15 @@ export class ExtensionEditor extends BaseEditor {
 
 		const details = $('details', { open: true, ontoggle: onDetailsToggle },
 			$('summary', null, localize('JSON Validation', "JSON Validation ({0})", contrib.length)),
-			$('ul', null, ...contrib.map(v => $('li', null, v.fileMatch)))
-		);
+			$('table', null,
+				$('tr', null,
+					$('th', null, localize('fileMatch', "File Match")),
+					$('th', null, localize('schema', "Schema"))
+				),
+				...contrib.map(v => $('tr', null,
+					$('td', null, $('code', null, v.fileMatch)),
+					$('td', null, v.url)
+				))));
 
 		append(container, details);
 		return true;

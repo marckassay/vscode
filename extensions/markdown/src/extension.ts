@@ -14,7 +14,8 @@ import { loadDefaultTelemetryReporter } from './telemetryReporter';
 import { loadMarkdownExtensions } from './markdownExtensions';
 import LinkProvider from './features/documentLinkProvider';
 import MDDocumentSymbolProvider from './features/documentSymbolProvider';
-import { MarkdownContentProvider, MarkdownPreviewManager } from './features/previewContentProvider';
+import { MarkdownContentProvider } from './features/previewContentProvider';
+import { MarkdownPreviewManager } from './features/previewManager';
 
 
 export function activate(context: vscode.ExtensionContext) {
@@ -42,7 +43,7 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(commandManager);
 	commandManager.register(new commands.ShowPreviewCommand(previewManager, telemetryReporter));
 	commandManager.register(new commands.ShowPreviewToSideCommand(previewManager, telemetryReporter));
-	commandManager.register(new commands.ShowPinnedPreviewToSideCommand(previewManager, telemetryReporter));
+	commandManager.register(new commands.ShowLockedPreviewToSideCommand(previewManager, telemetryReporter));
 	commandManager.register(new commands.ShowSourceCommand(previewManager));
 	commandManager.register(new commands.RefreshPreviewCommand(previewManager));
 	commandManager.register(new commands.RevealLineCommand(logger, previewManager));
@@ -50,6 +51,7 @@ export function activate(context: vscode.ExtensionContext) {
 	commandManager.register(new commands.ShowPreviewSecuritySelectorCommand(previewSecuritySelector));
 	commandManager.register(new commands.OnPreviewStyleLoadErrorCommand());
 	commandManager.register(new commands.OpenDocumentLinkCommand(engine));
+	commandManager.register(new commands.ToggleLockCommand(previewManager));
 
 	context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(() => {
 		logger.updateConfiguration();

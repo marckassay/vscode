@@ -49,15 +49,19 @@ class WebviewInput extends EditorInput {
 	private _name: string;
 	private _options: vscode.WebviewOptions;
 	private _html: string;
+	private _currentWebviewHtml: string = '';
 	private _events: WebviewEvents | undefined;
 	private _container: HTMLElement;
 	private _webview: Webview | undefined;
 	private _webviewOwner: any;
 	private _webviewDisposables: IDisposable[] = [];
+	private _position: Position;
+
 
 	public static create(
 		resource: URI,
 		name: string,
+		position: Position,
 		options: vscode.WebviewOptions,
 		html: string,
 		events: WebviewEvents,
@@ -69,12 +73,13 @@ class WebviewInput extends EditorInput {
 
 		partService.getContainer(Parts.EDITOR_PART).appendChild(webviewContainer);
 
-		return new WebviewInput(resource, name, options, html, events, webviewContainer, undefined);
+		return new WebviewInput(resource, name, position, options, html, events, webviewContainer, undefined);
 	}
 
 	constructor(
 		resource: URI,
 		name: string,
+		position: Position,
 		options: vscode.WebviewOptions,
 		html: string,
 		events: WebviewEvents,
@@ -84,6 +89,7 @@ class WebviewInput extends EditorInput {
 		super();
 		this._resource = resource;
 		this._name = name;
+		this._position = position;
 		this._options = options;
 		this._html = html;
 		this._events = events;
@@ -125,15 +131,24 @@ class WebviewInput extends EditorInput {
 		this._onDidChangeLabel.fire();
 	}
 
+	public get position(): Position {
+		return this._position;
+	}
+
 	public get html(): string {
 		return this._html;
 	}
 
 	public setHtml(value: string): void {
+		if (value === this._currentWebviewHtml) {
+			return;
+		}
+
 		this._html = value;
 
 		if (this._webview) {
 			this._webview.contents = value;
+			this._currentWebviewHtml = value;
 		}
 	}
 
@@ -186,7 +201,9 @@ class WebviewInput extends EditorInput {
 	public releaseWebview(owner: any) {
 		if (this._webviewOwner === owner) {
 			this._webviewOwner = undefined;
-			if (!this._options.retainContextWhenHidden) {
+			if (this._options.retainContextWhenHidden) {
+				this.container.style.visibility = 'hidden';
+			} else {
 				this.disposeWebview();
 			}
 		}
@@ -203,12 +220,15 @@ class WebviewInput extends EditorInput {
 
 		this._webviewOwner = undefined;
 		this.container.style.visibility = 'hidden';
+
+		this._currentWebviewHtml = '';
 	}
 
 	public onDidChangePosition(position: Position) {
 		if (this._events) {
 			this._events.onDidChangePosition(position);
 		}
+		this._position = position;
 	}
 }
 
@@ -311,6 +331,7 @@ class WebviewEditor extends BaseWebviewEditor {
 				this.webviewContent.style.visibility = 'hidden';
 			}
 		}
+
 		super.setEditorVisible(visible, position);
 	}
 
@@ -351,7 +372,7 @@ class WebviewEditor extends BaseWebviewEditor {
 			useSameOriginForRoot: false,
 			localResourceRoots: (input && input.options.localResourceRoots) || this._contextService.getWorkspace().folders.map(x => x.uri)
 		};
-		webview.contents = input.html;
+		input.setHtml(input.html);
 		this.webviewContent.style.visibility = 'visible';
 		this.doUpdateContainer();
 	}
@@ -413,10 +434,10 @@ export class MainThreadWebviews implements MainThreadWebviewsShape {
 
 	constructor(
 		context: IExtHostContext,
-		@IEditorGroupService _editorGroupService: IEditorGroupService,
 		@IContextKeyService _contextKeyService: IContextKeyService,
 		@IPartService private readonly _partService: IPartService,
 		@IWorkbenchEditorService private readonly _editorService: IWorkbenchEditorService,
+		@IEditorGroupService private readonly _editorGroupService: IEditorGroupService,
 		@IOpenerService private readonly _openerService: IOpenerService
 	) {
 		this._proxy = context.getProxy(ExtHostContext.ExtHostWebviews);
@@ -427,15 +448,21 @@ export class MainThreadWebviews implements MainThreadWebviewsShape {
 		this._toDispose = dispose(this._toDispose);
 	}
 
-	$createWebview(handle: WebviewHandle, uri: URI, options: vscode.WebviewOptions): void {
-		const webviewInput = WebviewInput.create(URI.revive(uri), '', options, '', {
+	$createWebview(handle: WebviewHandle, uri: URI, title: string, column: Position, options: vscode.WebviewOptions): void {
+		const webviewInput = WebviewInput.create(URI.revive(uri), title, column, options, '', {
 			onMessage: message => this._proxy.$onMessage(handle, message),
 			onDidChangePosition: position => this._proxy.$onDidChangePosition(handle, position),
-			onDispose: () => this._proxy.$onDidDisposeWeview(handle),
+			onDispose: () => {
+				this._proxy.$onDidDisposeWeview(handle).then(() => {
+					this._webviews.delete(handle);
+				});
+			},
 			onDidClickLink: (link, options) => this.onDidClickLink(link, options)
 		}, this._partService);
 
 		this._webviews.set(handle, webviewInput);
+
+		this._editorService.openEditor(webviewInput, { pinned: true }, column);
 	}
 
 	$disposeWebview(handle: WebviewHandle): void {
@@ -455,7 +482,11 @@ export class MainThreadWebviews implements MainThreadWebviewsShape {
 
 	$show(handle: WebviewHandle, column: Position): void {
 		const webviewInput = this.getWebview(handle);
-		this._editorService.openEditor(webviewInput, { pinned: true }, column);
+		if (webviewInput.position === column) {
+			return;
+		}
+
+		this._editorGroupService.moveEditor(webviewInput, webviewInput.position, column, { preserveFocus: true });
 	}
 
 	async $sendMessage(handle: WebviewHandle, message: any): Promise<boolean> {
@@ -483,7 +514,7 @@ export class MainThreadWebviews implements MainThreadWebviewsShape {
 	private onEditorsChanged() {
 		const activeEditor = this._editorService.getActiveEditor();
 		let newActiveWebview: { input: WebviewInput, handle: WebviewHandle } | undefined = undefined;
-		if (activeEditor.input instanceof WebviewInput) {
+		if (activeEditor && activeEditor.input instanceof WebviewInput) {
 			for (const handle of map.keys(this._webviews)) {
 				const input = this._webviews.get(handle);
 				if (input.matches(activeEditor.input)) {

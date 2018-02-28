@@ -2,7 +2,7 @@
 	"name": "vscode-markdown",
 	"displayName": "%displayName%",
 	"description": "%description%",
-	"version": "0.2.0",
+	"version": "1.0.0",
 	"publisher": "vscode",
 	"aiKey": "AIF-d9b70cd4-b9f9-4d70-929b-a071c400b217",
 	"enableProposedApi": true,
@@ -15,10 +15,11 @@
 	],
 	"activationEvents": [
 		"onLanguage:markdown",
-		"onCommand:markdown.refreshPreview",
+		"onCommand:markdown.preview.toggleLock",
+		"onCommand:markdown.preview.refresh",
 		"onCommand:markdown.showPreview",
 		"onCommand:markdown.showPreviewToSide",
-		"onCommand:markdown.showPinnedPreviewToSide",
+		"onCommand:markdown.showLockedPreviewToSide",
 		"onCommand:markdown.showSource",
 		"onCommand:markdown.showPreviewSecuritySelector"
 	],
@@ -111,8 +112,8 @@
 				}
 			},
 			{
-				"command": "markdown.showPinnedPreviewToSide",
-				"title": "%markdown.showPinnedPreviewToSide.title%",
+				"command": "markdown.showLockedPreviewToSide",
+				"title": "%markdown.showLockedPreviewToSide.title%",
 				"category": "Markdown",
 				"icon": {
 					"light": "./media/PreviewOnRightPane_16x.svg",
@@ -129,13 +130,18 @@
 				}
 			},
 			{
-				"command": "markdown.refreshPreview",
-				"title": "%markdown.refreshPreview.title%",
+				"command": "markdown.showPreviewSecuritySelector",
+				"title": "%markdown.showPreviewSecuritySelector.title%",
 				"category": "Markdown"
 			},
 			{
-				"command": "markdown.showPreviewSecuritySelector",
-				"title": "%markdown.showPreviewSecuritySelector.title%",
+				"command": "markdown.preview.refresh",
+				"title": "%markdown.preview.refresh.title%",
+				"category": "Markdown"
+			},
+			{
+				"command": "markdown.preview.toggleLock",
+				"title": "%markdown.preview.toggleLock.title%",
 				"category": "Markdown"
 			}
 		],
@@ -149,17 +155,22 @@
 				},
 				{
 					"command": "markdown.showSource",
-					"when": "markdownPreview",
+					"when": "markdownPreviewFocus",
 					"group": "navigation"
 				},
 				{
-					"command": "markdown.refreshPreview",
-					"when": "markdownPreview",
+					"command": "markdown.preview.refresh",
+					"when": "markdownPreviewFocus",
+					"group": "1_markdown"
+				},
+				{
+					"command": "markdown.preview.toggleLock",
+					"when": "markdownPreviewFocus",
 					"group": "1_markdown"
 				},
 				{
 					"command": "markdown.showPreviewSecuritySelector",
-					"when": "markdownPreview",
+					"when": "markdownPreviewFocus",
 					"group": "1_markdown"
 				}
 			],
@@ -182,13 +193,13 @@
 					"group": "navigation"
 				},
 				{
-					"command": "markdown.showPinnedPreviewToSide",
+					"command": "markdown.showLockedPreviewToSide",
 					"when": "editorLangId == markdown",
 					"group": "navigation"
 				},
 				{
 					"command": "markdown.showSource",
-					"when": "markdownPreview",
+					"when": "markdownPreviewFocus",
 					"group": "navigation"
 				},
 				{
@@ -197,7 +208,7 @@
 				},
 				{
 					"command": "markdown.showPreviewSecuritySelector",
-					"when": "markdownPreview"
+					"when": "markdownPreviewFocus"
 				}
 			]
 		},
@@ -278,6 +289,12 @@
 					"description": "%markdown.preview.scrollPreviewWithEditor.desc%",
 					"scope": "resource"
 				},
+				"markdown.preview.scrollPreviewWithEditorSelection": {
+					"type": "boolean",
+					"default": true,
+					"description": "%markdown.preview.scrollPreviewWithEditorSelection.desc%",
+					"deprecationMessage": "%markdown.preview.scrollPreviewWithEditorSelection.deprecationMessage%"
+				},
 				"markdown.preview.markEditorSelection": {
 					"type": "boolean",
 					"default": true,
@@ -329,7 +346,7 @@
 		"highlight.js": "9.5.0",
 		"markdown-it": "^8.4.0",
 		"markdown-it-named-headers": "0.0.4",
-		"vscode-extension-telemetry": "^0.0.14",
+		"vscode-extension-telemetry": "0.0.15",
 		"vscode-nls": "^3.2.1"
 	},
 	"devDependencies": {

@@ -1,12 +1,13 @@
 {
     "name": "emmet",
-    "displayName": "emmet",
-    "description": "Emmet support for VS Code",
-    "version": "0.0.1",
+    "displayName": "Emmet",
+    "description": "%description%",
+    "version": "1.0.0",
     "publisher": "vscode",
     "engines": {
         "vscode": "^1.13.0"
     },
+    "icon": "images/icon.svg",
     "categories": [
         "Other"
     ],

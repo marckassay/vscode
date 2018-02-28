@@ -33,6 +33,7 @@ import { FileKind } from 'vs/platform/files/common/files';
 import { ICommandService } from 'vs/platform/commands/common/commands';
 import { FileIconThemableWorkbenchTree } from 'vs/workbench/browser/parts/views/viewsViewlet';
 import { IViewletService } from 'vs/workbench/services/viewlet/browser/viewlet';
+import { isUndefinedOrNull } from 'vs/base/common/types';
 
 export class CustomViewsService extends Disposable implements ICustomViewsService {
 
@@ -262,10 +263,10 @@ class CustomTreeViewer extends Disposable implements ITreeViewer {
 		return TPromise.as(null);
 	}
 
-	reveal(item: ITreeItem, parentChain: ITreeItem[], options?: { donotSelect?: boolean }): TPromise<void> {
+	reveal(item: ITreeItem, parentChain: ITreeItem[], options?: { select?: boolean }): TPromise<void> {
 		if (this.tree && this.isVisible) {
-			options = options ? options : { donotSelect: false };
-			const select = !options.donotSelect;
+			options = options ? options : { select: true };
+			const select = isUndefinedOrNull(options.select) ? true : options.select;
 			var result = TPromise.as(null);
 			parentChain.forEach((e) => {
 				result = result.then(() => this.tree.expand(e));
@@ -511,8 +512,8 @@ class TreeItemIcon extends Disposable {
 			const hasContributedIcon = !!contributedIcon;
 			const hasChildren = this._treeItem.collapsibleState !== TreeItemCollapsibleState.None;
 			const hasThemeIcon = !!this._treeItem.resourceUri || !!this._treeItem.themeIcon;
-			const isFolder = hasThemeIcon && this._treeItem.themeIcon ? this._treeItem.themeIcon.id === FolderThemeIcon.id : hasChildren;
-			const isFile = hasThemeIcon && this._treeItem.themeIcon ? this._treeItem.themeIcon.id === FileThemeIcon.id : !hasChildren;
+			const isFolder = hasThemeIcon ? (this._treeItem.themeIcon ? this._treeItem.themeIcon.id === FolderThemeIcon.id : hasChildren) : false;
+			const isFile = hasThemeIcon ? (this._treeItem.themeIcon ? this._treeItem.themeIcon.id === FileThemeIcon.id : !hasChildren) : false;
 			const hasThemeFolderIcon = isFolder && fileIconTheme.hasFileIcons && fileIconTheme.hasFolderIcons;
 			const hasThemeFileIcon = isFile && fileIconTheme.hasFileIcons;
 			const hasIcon = hasContributedIcon || hasThemeFolderIcon || hasThemeFileIcon;

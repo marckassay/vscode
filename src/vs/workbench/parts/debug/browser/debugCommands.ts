@@ -16,20 +16,20 @@ import { Expression, Variable, Breakpoint, FunctionBreakpoint } from 'vs/workben
 import { IExtensionsViewlet, VIEWLET_ID as EXTENSIONS_VIEWLET_ID } from 'vs/workbench/parts/extensions/common/extensions';
 import { IViewletService } from 'vs/workbench/services/viewlet/browser/viewlet';
 import { ICodeEditor } from 'vs/editor/browser/editorBrowser';
-import { CommandsRegistry } from 'vs/platform/commands/common/commands';
 import { MenuRegistry, MenuId } from 'vs/platform/actions/common/actions';
 import { IWorkbenchEditorService } from 'vs/workbench/services/editor/common/editorService';
 import { EditorContextKeys } from 'vs/editor/common/editorContextKeys';
 import { ContextKeyExpr } from 'vs/platform/contextkey/common/contextkey';
 import { openBreakpointSource } from 'vs/workbench/parts/debug/browser/breakpointsView';
 import { INotificationService } from 'vs/platform/notification/common/notification';
+import { InputFocusedContext } from 'vs/platform/workbench/common/contextkeys';
 
 export function registerCommands(): void {
 
 	KeybindingsRegistry.registerCommandAndKeybindingRule({
 		id: 'debug.toggleBreakpoint',
 		weight: KeybindingsRegistry.WEIGHT.workbenchContrib(5),
-		when: CONTEXT_BREAKPOINTS_FOCUSED,
+		when: ContextKeyExpr.and(CONTEXT_BREAKPOINTS_FOCUSED, InputFocusedContext.toNegated()),
 		primary: KeyCode.Space,
 		handler: (accessor) => {
 			const listService = accessor.get(IListService);
@@ -174,7 +174,10 @@ export function registerCommands(): void {
 	});
 
 	const COLUMN_BREAKPOINT_COMMAND_ID = 'editor.debug.action.toggleColumnBreakpoint';
-	CommandsRegistry.registerCommand({
+	KeybindingsRegistry.registerCommandAndKeybindingRule({
+		weight: KeybindingsRegistry.WEIGHT.workbenchContrib(),
+		primary: KeyMod.Shift | KeyCode.F9,
+		when: EditorContextKeys.textFocus,
 		id: COLUMN_BREAKPOINT_COMMAND_ID,
 		handler: (accessor) => {
 			const debugService = accessor.get(IDebugService);
