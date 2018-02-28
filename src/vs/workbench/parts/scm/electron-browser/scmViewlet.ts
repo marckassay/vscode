@@ -693,15 +693,15 @@ class ResourceGroupSplicer {
 			return;
 		}
 
-		if (deleteCount > 0) {
-			this.selectNextItem();
-		}
-
 		let absoluteStart = start;
 
 		for (let i = 0; i < itemIndex; i++) {
 			const item = this.items[i];
 			absoluteStart += (item.visible ? 1 : 0) + item.group.elements.length;
+		}
+
+		if (deleteCount > 0) {
+			this.selectNextResourceFromGroup(absoluteStart - start);
 		}
 
 		if (item.visible && !visible) {
@@ -717,14 +717,21 @@ class ResourceGroupSplicer {
 		this.openSelectedItem();
 	}
 
-	private selectNextItem() {
+	private selectNextResourceFromGroup(groupAbsoluteStart: number) {
 		this.spliceableList.selectNext(1, true);
+		// if getSelection() returns 0, then selectNext() looped to the beginning of the whole
+		// collection (this.items). So set selection to the beginning of the ('Changes') group.
+		if (this.spliceableList.getSelection()[0] === 0) {
+			this.spliceableList.setSelection([groupAbsoluteStart + 1]);
+		}
 	}
 
 	private openSelectedItem() {
-		const selectedItems = this.spliceableList.getSelection();
-		this.spliceableList.setFocus(selectedItems);
-		this.spliceableList.open(selectedItems);
+		const selectedItem = this.spliceableList.getSelection()[0];
+
+		this.spliceableList.setFocus([selectedItem]);
+		this.spliceableList.reveal(this.spliceableList.getFocus()[0]);
+		this.spliceableList.open([selectedItem]);
 	}
 
 	dispose(): void {
