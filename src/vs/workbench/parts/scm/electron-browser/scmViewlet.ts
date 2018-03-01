@@ -714,7 +714,9 @@ class ResourceGroupSplicer {
 
 		item.visible = visible;
 
-		this.openSelectedItem();
+		if (deleteCount > 0) {
+			this.openSelectedItem();
+		}
 	}
 
 	private selectNextResourceFromGroup(groupAbsoluteStart: number) {
@@ -728,10 +730,11 @@ class ResourceGroupSplicer {
 
 	private openSelectedItem() {
 		const selectedItem = this.spliceableList.getSelection()[0];
-
-		this.spliceableList.setFocus([selectedItem]);
-		this.spliceableList.reveal(this.spliceableList.getFocus()[0]);
-		this.spliceableList.open([selectedItem]);
+		if (selectedItem) {
+			this.spliceableList.setFocus([selectedItem]);
+			this.spliceableList.reveal(this.spliceableList.getFocus()[0]);
+			this.spliceableList.open([selectedItem]);
+		}
 	}
 
 	dispose(): void {
