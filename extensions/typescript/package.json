@@ -1,8 +1,9 @@
 {
-  "name": "typescript",
+  "name": "typescript-language-features",
   "description": "%description%",
   "displayName": "%displayName%",
   "version": "1.0.0",
+  "icon": "icon.png",
   "author": "vscode",
   "publisher": "vscode",
   "license": "MIT",
@@ -527,7 +528,7 @@
         "properties": {
           "tsconfig": {
             "type": "string",
-            "description": "The tsconfig file that defines the TS build"
+            "description": "%taskDefinition.tsconfig.description%"
           },
           "option": {
             "type": "string"
@@ -551,6 +552,7 @@
         "name": "tsc",
         "label": "%typescript.problemMatchers.tsc.label%",
         "owner": "typescript",
+        "source": "ts",
         "applyTo": "closedDocuments",
         "fileLocation": [
           "relative",
@@ -562,6 +564,7 @@
         "name": "tsc-watch",
         "label": "%typescript.problemMatchers.tscWatch.label%",
         "owner": "typescript",
+        "source": "ts",
         "applyTo": "closedDocuments",
         "fileLocation": [
           "relative",

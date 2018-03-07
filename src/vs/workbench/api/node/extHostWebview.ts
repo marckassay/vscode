@@ -8,6 +8,7 @@ import * as vscode from 'vscode';
 import Event, { Emitter } from 'vs/base/common/event';
 import * as typeConverters from 'vs/workbench/api/node/extHostTypeConverters';
 import { Position } from 'vs/platform/editor/common/editor';
+import { TPromise } from 'vs/base/common/winjs.base';
 
 export class ExtHostWebview implements vscode.Webview {
 	public readonly editorType = 'webview';
@@ -136,30 +137,31 @@ export class ExtHostWebviews implements ExtHostWebviewsShape {
 
 		const webview = new ExtHostWebview(handle, this._proxy, uri, viewColumn, options);
 		this._webviews.set(handle, webview);
-		return this._webviews.get(handle);
+		return webview;
 	}
 
 	$onMessage(handle: WebviewHandle, message: any): void {
-		const webview = this._webviews.get(handle);
-
-		webview.onMessageEmitter.fire(message);
+		const webview = this.getWebview(handle);
+		if (webview) {
+			webview.onMessageEmitter.fire(message);
+		}
 	}
 
 	$onDidChangeActiveWeview(handle: WebviewHandle | undefined): void {
-		const webview = this._webviews.get(handle);
-		this._onDidChangeActiveWebview.fire(webview);
+		this._onDidChangeActiveWebview.fire(this.getWebview(handle));
 	}
 
 	$onDidDisposeWeview(handle: WebviewHandle): Thenable<void> {
-		const webview = this._webviews.get(handle);
+		const webview = this.getWebview(handle);
 		if (webview) {
 			webview.onDisposeEmitter.fire();
+			this._webviews.delete(handle);
 		}
-		return Promise.resolve(void 0);
+		return TPromise.as(void 0);
 	}
 
 	$onDidChangePosition(handle: WebviewHandle, newPosition: Position): void {
-		const webview = this._webviews.get(handle);
+		const webview = this.getWebview(handle);
 		if (webview) {
 			const newViewColumn = typeConverters.toViewColumn(newPosition);
 			if (webview.viewColumn !== newViewColumn) {
@@ -171,4 +173,8 @@ export class ExtHostWebviews implements ExtHostWebviewsShape {
 
 	private readonly _onDidChangeActiveWebview = new Emitter<ExtHostWebview | undefined>();
 	public readonly onDidChangeActiveWebview = this._onDidChangeActiveWebview.event;
+
+	private getWebview(handle: WebviewHandle) {
+		return this._webviews.get(handle);
+	}
 }
