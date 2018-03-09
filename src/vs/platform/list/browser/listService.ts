@@ -55,7 +55,7 @@ export class ListService implements IListService {
 		return this._lastFocusedWidget;
 	}
 
-	constructor( @IContextKeyService contextKeyService: IContextKeyService) { }
+	constructor(@IContextKeyService contextKeyService: IContextKeyService) { }
 
 	register(widget: ListWidget, extraContextKeys?: (IContextKey<boolean>)[]): IDisposable {
 		if (this.lists.some(l => l.widget === widget)) {
@@ -73,7 +73,13 @@ export class ListService implements IListService {
 
 		const result = combinedDisposable([
 			widget.onDidFocus(() => this._lastFocusedWidget = widget),
-			toDisposable(() => this.lists.splice(this.lists.indexOf(registeredList), 1))
+			toDisposable(() => this.lists.splice(this.lists.indexOf(registeredList), 1)),
+			widget.onDidDispose(() => {
+				this.lists = this.lists.filter(l => l !== registeredList);
+				if (this._lastFocusedWidget === widget) {
+					this._lastFocusedWidget = undefined;
+				}
+			})
 		]);
 
 		return result;
