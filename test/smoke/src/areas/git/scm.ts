@@ -13,7 +13,7 @@ const SCM_RESOURCE_GROUP = `${VIEWLET} .monaco-list-row > .resource-group`;
 const REFRESH_COMMAND = `div[id="workbench.parts.sidebar"] .actions-container a.action-label[title="Refresh"]`;
 const COMMIT_COMMAND = `div[id="workbench.parts.sidebar"] .actions-container a.action-label[title="Commit"]`;
 const SCM_RESOURCE_CLICK = (name: string) => `${SCM_RESOURCE} .monaco-icon-label[title*="${name}"] .label-name`;
-const SCM_RESOURCE_ACTION_CLICK = (name: string, actionName: string) => `${SCM_RESOURCE} .monaco-icon-label[title*="${name}"] .actions .action-label[title="${actionName}"]`;
+const SCM_RESOURCE_ACTION_CLICK = (name: string, actionName: string) => `${SCM_RESOURCE} .monaco-icon-label[title="${name}"] .actions .action-label[title="${actionName}"]`;
 const SCM_RESOURCE_GROUP_COMMAND_CLICK = (name: string) => `${SCM_RESOURCE_GROUP} .actions .action-label[title="${name}"]`;
 
 interface Change {
@@ -84,9 +84,27 @@ export class SCM extends Viewlet {
 		await this.spectron.client.waitAndClick(SCM_RESOURCE_CLICK(name));
 	}
 
-	async stage(name: string): Promise<void> {
-		await this.spectron.client.waitAndClick(SCM_RESOURCE_ACTION_CLICK(name, 'Stage Changes'));
+	async waitAndMoveToObject(name: string): Promise<void> {
+		await this.spectron.client.spectron.client.pause(1000);
+		await this.spectron.client.waitAndMoveToObject(SCM_RESOURCE_CLICK(name));
+		await this.spectron.client.spectron.client.pause(1000);
 	}
+
+	async waitForVisibility(name: string, actionName: string): Promise<void> {
+		// .error.jade-name-file-icon
+		await this.spectron.client.waitForVisibility(`.monaco-icon-label[title*="${name}"] a.action-label.icon.menu-item-action-item-icon-4`);
+	}
+
+	async stage(name?: string): Promise<void> {
+		//await this.spectron.client.waitAndClick(SCM_RESOURCE_ACTION_CLICK(name, 'Stage Changes'));
+		await this.spectron.client.waitAndClick('.monaco-list-row.focused.selected a.action-label.icon.menu-item-action-item-icon-4');
+	}
+
+	async clickSelectedOpenFile(): Promise<void> {
+		//await this.spectron.client.waitAndClick(SCM_RESOURCE_ACTION_CLICK(name, 'Stage Changes'));
+		await this.spectron.client.waitAndClick('.monaco-list-row.focused.selected a.action-label.icon.menu-item-action-item-icon-7');
+	}
+
 
 	async stageAll(): Promise<void> {
 		await this.spectron.client.waitAndClick(SCM_RESOURCE_GROUP_COMMAND_CLICK('Stage All Changes'));

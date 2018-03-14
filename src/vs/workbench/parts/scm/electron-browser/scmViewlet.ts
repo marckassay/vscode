@@ -51,7 +51,7 @@ import { renderOcticons } from 'vs/base/browser/ui/octiconLabel/octiconLabel';
 import { StandardMouseEvent } from 'vs/base/browser/mouseEvent';
 import * as platform from 'vs/base/common/platform';
 import { format } from 'vs/base/common/strings';
-import { ISpliceable, ISequence, ISplice } from 'vs/base/common/sequence';
+import { ISequence, ISplice } from 'vs/base/common/sequence';
 import { firstIndex } from 'vs/base/common/arrays';
 import { WorkbenchList } from 'vs/platform/list/browser/listService';
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
@@ -597,7 +597,7 @@ class ResourceGroupSplicer {
 
 	constructor(
 		groupSequence: ISequence<ISCMResourceGroup>,
-		private spliceable: ISpliceable<ISCMResourceGroup | ISCMResource>
+		private spliceableList: List<ISCMResourceGroup | ISCMResource>
 	) {
 		groupSequence.onDidSplice(this.onDidSpliceGroups, this, this.disposables);
 		this.onDidSpliceGroups({ start: 0, deleteCount: 0, toInsert: groupSequence.elements });
@@ -646,7 +646,7 @@ class ResourceGroupSplicer {
 			item.disposable.dispose();
 		}
 
-		this.spliceable.splice(absoluteStart, absoluteDeleteCount, absoluteToInsert);
+		this.spliceableList.splice(absoluteStart, absoluteDeleteCount, absoluteToInsert);
 	}
 
 	private onDidChangeGroup(group: ISCMResourceGroup): void {
@@ -671,9 +671,9 @@ class ResourceGroupSplicer {
 		}
 
 		if (visible) {
-			this.spliceable.splice(absoluteStart, 0, [group, ...group.elements]);
+			this.spliceableList.splice(absoluteStart, 0, [group, ...group.elements]);
 		} else {
-			this.spliceable.splice(absoluteStart, 1 + group.elements.length, []);
+			this.spliceableList.splice(absoluteStart, 1 + group.elements.length, []);
 		}
 
 		item.visible = visible;
@@ -700,15 +700,41 @@ class ResourceGroupSplicer {
 			absoluteStart += (item.visible ? 1 : 0) + item.group.elements.length;
 		}
 
+		if (deleteCount > 0) {
+			this.selectNextResourceFromGroup(absoluteStart - start);
+		}
+
 		if (item.visible && !visible) {
-			this.spliceable.splice(absoluteStart, 1 + deleteCount, toInsert);
+			this.spliceableList.splice(absoluteStart, 1 + deleteCount, toInsert);
 		} else if (!item.visible && visible) {
-			this.spliceable.splice(absoluteStart, deleteCount, [group, ...toInsert]);
+			this.spliceableList.splice(absoluteStart, deleteCount, [group, ...toInsert]);
 		} else {
-			this.spliceable.splice(absoluteStart + 1, deleteCount, toInsert);
+			this.spliceableList.splice(absoluteStart + 1, deleteCount, toInsert);
 		}
 
 		item.visible = visible;
+
+		if (deleteCount > 0) {
+			this.openSelectedItem();
+		}
+	}
+
+	private selectNextResourceFromGroup(groupAbsoluteStart: number) {
+		this.spliceableList.selectNext(1, true);
+		// if getSelection() returns 0, then selectNext() looped to the beginning of the whole
+		// collection (this.items). So set selection to the beginning of the ('Changes') group.
+		if (this.spliceableList.getSelection()[0] === 0) {
+			this.spliceableList.setSelection([groupAbsoluteStart + 1]);
+		}
+	}
+
+	private openSelectedItem() {
+		const selectedItem = this.spliceableList.getSelection()[0];
+		if (selectedItem) {
+			this.spliceableList.setFocus([selectedItem]);
+			this.spliceableList.reveal(this.spliceableList.getFocus()[0]);
+			this.spliceableList.open([selectedItem]);
+		}
 	}
 
 	dispose(): void {

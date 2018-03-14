@@ -55,6 +55,12 @@ export class Workbench {
 		await this.spectron.workbench.quickopen.runCommand('File: Save');
 	}
 
+	public async closeTab(tabName: string): Promise<any> {
+		await this.spectron.client.waitAndClick(`.tabs-container div.tab[aria-label="${tabName}, tab"]`);
+		await this.spectron.client.click('.tabs-container div.tab.active a.action-label.icon.close-editor-action');
+		await this.spectron.client.waitForNotExist(`.tabs-container div.tab[aria-label="${tabName}, tab"]`);
+	}
+
 	public async selectTab(tabName: string, untitled: boolean = false): Promise<void> {
 		await this.spectron.client.waitAndClick(`.tabs-container div.tab[aria-label="${tabName}, tab"]`);
 		await this.waitForEditorFocus(tabName, untitled);
