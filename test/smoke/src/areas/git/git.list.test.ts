@@ -14,16 +14,7 @@ export function setup() {
 
 		it('I - stages in sequential order using key bindings', async function () {
 			const app = this.app as SpectronApplication;
-			/* 			const actionsparam = [{
-							type: 'key',
-							id: 'keyboard',
-							actions: [
-								{ type: 'keyDown', value: '\uE009' },
-								{ type: 'keyDown', value: 'l' },
-								{ type: 'keyUp', value: '\uE009' },
-								{ type: 'keyUp', value: 'l' }
-							]
-						}]; */
+
 			await app.workbench.scm.openSCMViewlet();
 
 			await app.workbench.keybindingsEditor.updateKeybinding('git.stage', ['Control', 'l'], 'Control+L');
@@ -47,14 +38,10 @@ export function setup() {
 			await app.workbench.scm.waitForChange('layout.jade', 'Modified');
 			await app.workbench.closeTab('layout.jade');
 
-			await app.workbench.scm.waitAndMoveToObject('error.jade');
-			await app.client.buttonDown();
+			await app.workbench.scm.waitAndMoveToListObject('error.jade');
 
-			await app.workbench.scm.waitAndMoveToObject('index.jade');
-			await app.client.buttonDown();
-
-			//await app.client.actions(actionsparam);
-			await app.workbench.scm.stage();
+			await app.workbench.scm.waitAndMoveToListObject('index.jade');
+			await app.workbench.scm.stage('index.jade');
 			await app.workbench.scm.waitForChange('index.jade', 'Index Modified');
 
 			await app.runCommand('Git: Stage Changes');

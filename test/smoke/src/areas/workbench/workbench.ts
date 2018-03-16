@@ -56,7 +56,7 @@ export class Workbench {
 	}
 
 	public async closeTab(tabName: string): Promise<any> {
-		await this.spectron.client.waitAndClick(`.tabs-container div.tab[aria-label="${tabName}, tab"]`);
+		await this.spectron.client.moveToObject(`.tabs-container div.tab[aria-label="${tabName}, tab"]`);
 		await this.spectron.client.click('.tabs-container div.tab.active a.action-label.icon.close-editor-action');
 		await this.spectron.client.waitForNotExist(`.tabs-container div.tab[aria-label="${tabName}, tab"]`);
 	}
