@@ -7,7 +7,7 @@
 
 import * as path from 'path';
 import * as objects from 'vs/base/common/objects';
-import nls = require('vs/nls');
+import * as nls from 'vs/nls';
 import URI from 'vs/base/common/uri';
 import { IStateService } from 'vs/platform/state/common/state';
 import { shell, screen, BrowserWindow, systemPreferences, app, TouchBar, nativeImage } from 'electron';
@@ -878,7 +878,9 @@ export class CodeWindow implements ICodeWindow {
 	}
 
 	public send(channel: string, ...args: any[]): void {
-		this._win.webContents.send(channel, ...args);
+		if (this._win) {
+			this._win.webContents.send(channel, ...args);
+		}
 	}
 
 	public updateTouchBar(groups: ICommandAction[][]): void {

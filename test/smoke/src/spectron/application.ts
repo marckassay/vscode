@@ -185,8 +185,7 @@ export class SpectronApplication {
 		args.push(...extraArgs);
 
 		chromeDriverArgs.push(`--user-data-dir=${this.options.userDataDir}`);
-		this.options.userDataDir = 'E:\\temp\\logs';
-		this.options.artifactsPath = 'E:\\temp\\logs';
+
 		// Spectron always uses the same port number for the chrome driver
 		// and it handles gracefully when two instances use the same port number
 		// This works, but when one of the instances quits, it takes down
@@ -210,8 +209,7 @@ export class SpectronApplication {
 		const runName = String(SpectronApplication.count++);
 		let testsuiteRootPath: string | undefined = undefined;
 		let screenshotsDirPath: string | undefined = undefined;
-		console.log('^^^' + this.options.artifactsPath);
-		console.log('^^^' + runName);
+
 		if (this.options.artifactsPath) {
 			testsuiteRootPath = path.join(this.options.artifactsPath, sanitize(runName));
 			mkdirp.sync(testsuiteRootPath);

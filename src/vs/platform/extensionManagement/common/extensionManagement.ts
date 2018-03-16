@@ -7,7 +7,7 @@
 
 import { localize } from 'vs/nls';
 import { TPromise } from 'vs/base/common/winjs.base';
-import Event from 'vs/base/common/event';
+import { Event } from 'vs/base/common/event';
 import { IPager } from 'vs/base/common/paging';
 import { createDecorator } from 'vs/platform/instantiation/common/instantiation';
 import { ILocalization } from 'vs/platform/localizations/common/localizations';
@@ -280,7 +280,7 @@ export interface IExtensionManagementService {
 	install(zipPath: string): TPromise<ILocalExtension>;
 	installFromGallery(extension: IGalleryExtension): TPromise<ILocalExtension>;
 	uninstall(extension: ILocalExtension, force?: boolean): TPromise<void>;
-	reinstall(extension: ILocalExtension): TPromise<ILocalExtension>;
+	reinstallFromGallery(extension: ILocalExtension): TPromise<ILocalExtension>;
 	getInstalled(type?: LocalExtensionType): TPromise<ILocalExtension[]>;
 	getExtensionsReport(): TPromise<IReportedExtension[]>;
 
