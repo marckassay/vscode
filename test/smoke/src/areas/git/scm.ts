@@ -84,28 +84,27 @@ export class SCM extends Viewlet {
 		await this.spectron.client.waitAndClick(SCM_RESOURCE_CLICK(name));
 	}
 
+	async openEditSaveAndCloseFile(name: string, message: string): Promise<void> {
+		await this.spectron.workbench.quickopen.openFile(name);
+		await this.spectron.workbench.editor.waitForTypeInEditor(name, message);
+		await this.spectron.client.keys(['Enter', 'NULL']);
+		await this.spectron.workbench.saveOpenedFile();
+		await this.waitForChange(name, 'Modified');
+		await this.spectron.workbench.closeTab(name);
+	}
+
 	async waitAndMoveToListObject(name: string, delay: number = 500): Promise<void> {
 		await this.spectron.client.spectron.client.pause(delay * .5);
 		await this.spectron.client.waitAndMoveToObject(SCM_RESOURCE_CLICK(name));
 		await this.spectron.client.buttonDown();
 		await this.spectron.client.buttonUp();
+		await this.spectron.client.waitAndMoveToObject(SCM_RESOURCE_CLICK(name));
 		await this.spectron.client.spectron.client.pause(delay * .5);
 	}
 
-	async waitForActiveElement(name: string): Promise<void> {
-		await this.spectron.client.waitForActiveElement('.monaco-list-row.focused.selected a.action-label.icon.menu-item-action-item-icon-4');
-	}
-
 	async stage(name: string): Promise<void> {
-		await this.spectron.client.waitAndMoveToObject(SCM_RESOURCE_CLICK(name));
 		await this.spectron.client.waitAndClick(SCM_RESOURCE_ACTION_CLICK(name, 'Stage Changes'));
 	}
-
-	async clickSelectedOpenFile(): Promise<void> {
-		//await this.spectron.client.waitAndClick(SCM_RESOURCE_ACTION_CLICK(name, 'Stage Changes'));
-		await this.spectron.client.waitAndClick('.monaco-list-row.focused.selected a.action-label.icon.menu-item-action-item-icon-7');
-	}
-
 
 	async stageAll(): Promise<void> {
 		await this.spectron.client.waitAndClick(SCM_RESOURCE_GROUP_COMMAND_CLICK('Stage All Changes'));
