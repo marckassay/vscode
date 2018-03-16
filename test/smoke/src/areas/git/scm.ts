@@ -90,9 +90,9 @@ export class SCM extends Viewlet {
 		await this.spectron.client.spectron.client.pause(1000);
 	}
 
-	async waitForVisibility(name: string, actionName: string): Promise<void> {
+	async waitForActiveElement(name: string): Promise<void> {
 		// .error.jade-name-file-icon
-		await this.spectron.client.waitForVisibility(`.monaco-icon-label[title*="${name}"] a.action-label.icon.menu-item-action-item-icon-4`);
+		await this.spectron.client.waitForActiveElement('.monaco-list-row.focused.selected a.action-label.icon.menu-item-action-item-icon-4');
 	}
 
 	async stage(name?: string): Promise<void> {

@@ -7,7 +7,7 @@ import { Application, ActionsShape } from 'spectron';
 import { RawResult, Element } from 'webdriverio';
 import { SpectronApplication } from './application';
 
-// augment spectron module since actions() is missing from typings
+// augmenting spectron module since actions() is missing from typings
 declare module 'spectron' {
 	export interface ActionsShape {
 		type: string; //'pointer' | 'key' | 'none';

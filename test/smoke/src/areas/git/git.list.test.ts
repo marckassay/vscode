@@ -57,9 +57,7 @@ export function setup() {
 			await app.workbench.scm.stage();
 			await app.workbench.scm.waitForChange('index.jade', 'Index Modified');
 
-			await this.spectron.client.keys(['Control', 'l', 'NULL']);
-			// await app.client.actions(actionsparam);
-			//await app.client.actions();
+			await app.runCommand('Git: Stage Changes');
 			await app.workbench.scm.waitForChange('layout.jade', 'Index Modified');
 		});
 		/*

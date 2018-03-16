@@ -29,6 +29,6 @@ export class KeybindingsEditor {
 		await this.spectron.client.waitForElement('.defineKeybindingWidget .monaco-inputbox.synthetic-focus');
 
 		await this.spectron.client.keys([...keys, 'NULL', 'Enter', 'NULL']);
-		await this.spectron.client.waitForElement(`div[aria-label="Keybindings"] div[aria-label="Keybinding is ${ariaLabel}."]`);
+		await this.spectron.client.waitForElement(`div[aria-label="Keybindings"] .monaco-list-row.keybinding-item div[aria-label="Keybinding is ${ariaLabel}."]`);
 	}
 }
